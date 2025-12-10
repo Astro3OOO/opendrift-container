@@ -366,7 +366,7 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
         t_strt = start_t.strftime("%Y-%m-%d_%H%M")
         file_name = f'{m}_{t_strt}_{t_now}.nc'
     
-    output_dir = "/OUTPUT"  
+    output_dir = "/OUTPUT"
     os.makedirs(output_dir, exist_ok=True)    
     file_name = os.path.join(output_dir, file_name)
     # Create a model and add readers

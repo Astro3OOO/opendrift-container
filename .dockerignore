@@ -10,3 +10,5 @@ __pycache__/
 *.tmp
 *.nc
 output/
+.pytest_cache/
+tests/__pycache__/

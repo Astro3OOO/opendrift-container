@@ -10,15 +10,23 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 
+def resolve_config_path(cfg: str) -> str:
+    if os.path.isabs(cfg):
+        return cfg
+
+    if cfg.startswith("INPUT/") or cfg.startswith("/opendrift-container/INPUT/"):
+        return cfg
+
+    return os.path.join("INPUT", cfg)
+
 def main() -> int:
     if len(sys.argv) < 2:
         logging.error("Usage: python main.py <config.json>")
         return 1
 
-    input_file = sys.argv[1]
+    raw_path = sys.argv[1]
     
-    path = 'INPUT'
-    input_file = os.path.join(path, input_file)
+    input_file = resolve_config_path(raw_path)
     if not os.path.exists(input_file):
         logging.error(f"Config file '{input_file}' does not exist.")
         return 2
