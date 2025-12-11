@@ -9,7 +9,7 @@ build-image:
     - shell
   script:
     - docker build -t opendrift-container .
-    - pytest tests
+    - PYTHONPATH=. pytest tests
 
 test-container:
   stage: test
