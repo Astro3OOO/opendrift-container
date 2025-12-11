@@ -8,7 +8,7 @@ build-image:
   tags:
     - shell
   script:
-    - mkdir -p /OUTPUT
+    - mkdir -p OUTPUT
     - docker build -t opendrift-container .
     - PYTHONPATH=. pytest tests
 
