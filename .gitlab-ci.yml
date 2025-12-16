@@ -10,9 +10,9 @@ build-image:
   script:
     - docker build -t opendrift-container .
     - PYTHONPATH=. pytest tests
-    - docker tag opendrift-container harbor.lvgmc.lv:80/fc/opendrift-container:latest
-    - docker login harbor.lvgmc.lv:80 -u="$HARBOR_USER" -p="$HARBOR_PASSWORD"
-    - docker push harbor.lvgmc.lv:80/fc/opendrift-container:latest
+    - docker tag opendrift-container 10.142.47.233:80/fc/opendrift-container:latest
+    - docker login 10.142.47.233:80 -u="$HARBOR_USER" -p="$HARBOR_PASSWORD"
+    - docker push 10.142.47.233:80/fc/opendrift-container:latest
 
 test-container:
   stage: test
