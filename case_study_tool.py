@@ -1,16 +1,11 @@
 import xarray as xr
-import opendrift
-from opendrift.readers import reader_netCDF_CF_generic
 from opendrift.models.oceandrift import OceanDrift
 from opendrift.models.leeway import Leeway
 from opendrift.models.shipdrift import ShipDrift
 import datetime as dt
 import zoneinfo
-import numpy as np
 import pandas as pd
 import os
-import matplotlib.pyplot as plt
-from datetime import datetime, timedelta
 import copernicusmarine
 from opendrift.readers.reader_netCDF_CF_generic import Reader
 import logging
