@@ -39,7 +39,7 @@ docker run \
 	-v path/to/host/dataset/folder:/DATASETS \
    	-v path/to/host/config/file.json:/opendrift-container/INPUT/config.json \
 	-v path/to/store/results:/OUTPUT \
-	opendrift_container python main.py config.json 
+	opendrift-container python main.py config.json 
 ``` 
 # Konfigurācijas fails
 
