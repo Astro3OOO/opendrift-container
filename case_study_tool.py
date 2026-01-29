@@ -22,13 +22,18 @@ logger_cop = logging.getLogger('copernicusmarine')
 logger_cop.setLevel(logging.WARNING)
 
 
-def get_time_from_reader(agg, lst, type):
-    if type == 'start':
+def get_time_from_reader(agg, lst, time_type = None):
+    types = ['start', 'end']
+    if time_type in types:
         if type(lst) == list:
             new_lst = []
             for element in lst:
-                if type(element.start_time) == dt.datetime or type(element) == pd._libs.tslibs.timestamps.Timestamp:
-                    new_lst.append(element.start_time)
+                reader_times = {'start':element.start_time,
+                                'end': element.end_time}
+                target = reader_times[time_type]
+                if (type(target) == dt.datetime or 
+                    type(element) == pd._libs.tslibs.timestamps.Timestamp):
+                    new_lst.append(target)
             if agg == 'Max':
                 return max(new_lst)
             elif agg == 'Min':
@@ -36,23 +41,11 @@ def get_time_from_reader(agg, lst, type):
             else:
                 logging.warning(f'Aggregation {agg} is not supported')
         else:
-            return lst.start_time
-    elif type == 'end':
-        if type(lst) == list:
-            new_lst = []
-            for element in lst:
-                if type(element.end_time) == dt.datetime or type(element) == pd._libs.tslibs.timestamps.Timestamp:
-                    new_lst.append(element.end_time)
-            if agg == 'Max':
-                return max(new_lst)
-            elif agg == 'Min':
-                return min(new_lst)
-            else:
-                logging.warning(f'Aggregation {agg} is not supported')
-        else:
-            return lst.end_time
+            reader_times = {'start':lst.start_time,
+                            'end': lst.end_time}
+            return reader_times[time_type]
     else:
-        logging.warning(f'Type {type} is unsupported')
+        logging.warning(f'Time type {time_type} is unsupported')
         return
 
 def PrepareStartTime(start_t, reader = None):
