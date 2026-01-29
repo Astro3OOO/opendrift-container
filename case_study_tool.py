@@ -2,6 +2,7 @@ import xarray as xr
 from opendrift.models.oceandrift import OceanDrift
 from opendrift.models.leeway import Leeway
 from opendrift.models.shipdrift import ShipDrift
+from opendrift.models.openoil import OpenOil
 import datetime as dt
 import zoneinfo
 import pandas as pd
@@ -270,7 +271,7 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
         logging.error('No dataset to return.')
         return []                  
 
-def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_type, orientation):
+def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_type, orientation, oil_type, shpfile):
     
     if model == OceanDrift:
         if seed_type == 'elements':
@@ -302,6 +303,18 @@ def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_ty
         else:
             logging.error('Unsupported seed type')
         return o
+
+    if model == OpenOil:
+        if seed_type == 'elements':
+            o.seed_elements(lat = start_position[0], lon = start_position[1], number = num, radius=rad, oil_type=oil_type, time = start_t)
+        elif seed_type == 'cone':
+            o.seed_cone(lat = start_position[0], lon = start_position[1], number = num, radius=rad, oil_type=oil_type, time = start_t)
+        elif seed_type == 'shapefile':
+            o.seed_from_shapefile(shpfile, number = num, radius=rad, oil_type=oil_type, time = start_t)
+        else:
+            logging.error('Unsupported seed type')
+        return o
+        
     
     logging.error(f'Model {model} is not implemented yet.')
     
@@ -309,13 +322,14 @@ def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_ty
 
 model_dict = {'OceanDrift':OceanDrift,
               'Leeway':Leeway,
-              'ShipDrift':ShipDrift}
+              'ShipDrift':ShipDrift,
+              'OpenOil': OpenOil}
 
 def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
                end_t=None, datasets=None, std_names=None, num=100,
                rad=0, ship=[62, 8, 10, 5], wdf=0.02, orientation = 'random',
                delay=False, multi_rad=False, seed_type=None, time_step = None,
-               configurations = None, file_name = None, vocabulary = None):
+               configurations = None, file_name = None, oil_type='GENERIC BUNKER C', shpfile=None):
     
     # Check main requirments
     if start_position == None:
@@ -326,6 +340,12 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
         return
     if seed_type == None:
         seed_type = 'elements'
+        
+    if seed_type == 'shapefile':
+        if shpfile == None:
+            logging.error('Seed type is selected as seeding from shape, but no shape file was provided')
+            return    
+        
     if model not in model_dict.keys():
         logging.error(f'Model {model} is not supported. Choose one of the following: {list(model_dict.keys())}')
         return
@@ -370,7 +390,8 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
     # Seed
 
     o = seed(o=o, model=model, lw_obj=lw_obj, num = num, rad = rad, start_t = start_t, 
-             start_position=start_position, ship=ship, wdf = wdf, seed_type=seed_type, orientation=orientation)
+             start_position=start_position, ship=ship, wdf = wdf, seed_type=seed_type,
+             orientation=orientation, oil_type=oil_type, shpfile=shpfile)
     # Run
     if time_step is None:
         o.run(end_time=end_t, outfile = file_name)
