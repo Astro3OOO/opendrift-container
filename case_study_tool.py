@@ -309,8 +309,8 @@ def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_ty
             o.seed_elements(lat = start_position[0], lon = start_position[1], number = num, radius=rad, oil_type=oil_type, time = start_t)
         elif seed_type == 'cone':
             o.seed_cone(lat = start_position[0], lon = start_position[1], number = num, radius=rad, oil_type=oil_type, time = start_t)
-        elif seed_type == 'shapefile':
-            o.seed_from_shapefile(shpfile, number = num, radius=rad, oil_type=oil_type, time = start_t)
+        # elif seed_type == 'shapefile':
+        #     o.seed_from_shapefile(shpfile, number = num, radius=rad, oil_type=oil_type, time = start_t)
         else:
             logging.error('Unsupported seed type')
         return o
@@ -341,10 +341,10 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
     if seed_type == None:
         seed_type = 'elements'
         
-    if seed_type == 'shapefile':
-        if shpfile == None:
-            logging.error('Seed type is selected as seeding from shape, but no shape file was provided')
-            return    
+    # if seed_type == 'shapefile':
+    #     if shpfile == None:
+    #         logging.error('Seed type is selected as seeding from shape, but no shape file was provided')
+    #         return    
         
     if model not in model_dict.keys():
         logging.error(f'Model {model} is not supported. Choose one of the following: {list(model_dict.keys())}')

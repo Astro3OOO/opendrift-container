@@ -11,7 +11,8 @@ logging.basicConfig(
 
 SIMULATION_KEYS = ['lw_obj', 'model', 'start_position', 'start_t', 'end_t',
                   'num', 'rad', 'ship', 'wdf', 'orientation', 'seed_type',
-                  'time_step', 'configurations', 'file_name', 'vocabulary', 'backtracking']
+                  'time_step', 'configurations', 'file_name', 'vocabulary',
+                  'backtracking', 'shpfile']
 DATASET_KEYS = ['start_t', 'end_t', 'border', 'folder', 'concatenation',  'copernicus', 'user', 'pword']
 REQUIRED_KEYS = ['model','start_position', 'start_t', 'end_t']
 VOC = ["Copernicus", "ECMWF", "Copernicus_edited"]
@@ -67,6 +68,16 @@ def check_shipdrift(file, sim_vars):
         logging.warning(f"Invalid orientation parameters: {orientation}. Must be one of [left, right, random]. Using default value random.")
     return sim_vars
 
+'''
+!!! Requires more advanced validation !!!     
+'''
+def check_openoil(file, sim_vars):
+    oil = file.get('oil_type')
+    if isinstance(oil, str):
+        sim_vars['oil_type'] = oil
+    else:
+        logging.warning(f"Invalid oil type: {oil}. Must be a valid type. Using default GENERIC BUNKER C")
+    return sim_vars
 
 # Simulation settings check functions
 # Seed settings. If missing or invalid, use default values from function definition. 
@@ -133,6 +144,15 @@ def check_seed_settings(flag, file, sim_vars):
         else:
             logging.error(f"Incorrect rad={rad} for seed_type=cone. Using rad=0.")
             sim_vars["rad"] = 0
+    # elif st == "shapefile":
+    #     sim_vars["seed_type"] = "shapefile"
+    #     if isinstance(rad, int):
+    #         sim_vars["rad"] = rad
+    #     elif isinstance(rad, list) and len(rad) == coords:
+    #         sim_vars["rad"] = rad
+    #     else:
+    #         logging.error(f"Incorrect rad={rad} for seed_type=elements. Using rad=0.")
+    #         sim_vars["rad"] = 0   
     else:
         logging.warning(
             f"Incorrect seed_type: {st}. Using default seed_type=elements."
