@@ -70,6 +70,28 @@ def PrepareTime(time, reader = None, time_type = None):
         logging.error(f'Incorrect end time input {time}. Returning placeholder')
         return placeholder[time_type]
 
+def ReadFolder(folder):
+    wind_bool = False
+    ecmwf = []
+    wind = []
+    netcdf = []
+    for file in os.listdir(folder):
+        if file.endswith('.grib'):
+            ds = xr.open_dataset(os.path.join(folder,file), engine='cfgrib')
+            ds = ds.assign_coords(time=ds['time'] + ds['step'])
+            ds = ds.swap_dims({'step': 'time'})
+            ecmwf.append(ds)
+            ds.close()
+            if 'u10' in ds.data_vars:
+                wind.append(xr.Dataset({'u10' : ds['u10'],
+                                    'v10': ds['v10']}))
+                wind_bool = True
+        if file.endswith('.nc'):
+            ds = xr.open_dataset(os.path.join(folder,file), engine='netcdf4')    
+            netcdf.append(ds)
+            ds.close()
+    return ecmwf, netcdf, wind, wind_bool
+
 def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
                    folder = None, concatenation =False, copernicus = False,
                    user = None, pword = None):
@@ -88,28 +110,10 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
     if folder != None:
         if concatenation:
             for subdir in os.listdir(folder):
-                buffer_ecmwf = []
-                buffer_netcdf = []
-                buffer_wind = []
                 full_path = os.path.join(folder, subdir)
                 if os.path.isdir(full_path):
-                    for file in os.listdir(full_path):
-                        if file.endswith('.grib'):
-                            ds = xr.open_dataset(os.path.join(folder,subdir,file), engine='cfgrib')
-                            ds = ds.assign_coords(time=ds['time'] + ds['step'])
-                            ds = ds.swap_dims({'step': 'time'})
-                            buffer_ecmwf.append(ds)
-                            ds.close()
-                            if 'u10' in ds.data_vars:
-                                buffer_wind.append(xr.Dataset({'u10' : ds['u10'],
-                                                    'v10': ds['v10']}))
-                                wind = True
-                        if file.endswith('.nc'):
-                            ds = xr.open_dataset(os.path.join(folder,subdir,file), engine='netcdf4')    
-                            buffer_netcdf.append(ds)
-                            ds.close()
+                    buffer_ecmwf, buffer_netcdf, buffer_wind, wind = ReadFolder(full_path)
 
-                            
                     buffers = {'ecmwf': buffer_ecmwf, 'netcdf': buffer_netcdf, 'wind': buffer_wind}
                     targets = {'ecmwf': ds_ecmwf, 'netcdf': ds_netcdf, 'wind': ds_wind}
 
@@ -125,22 +129,7 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
 
         
         else:
-            for file in os.listdir(folder):
-                if file.endswith('.grib'):
-                    ds = xr.open_dataset(os.path.join(folder,file), engine='cfgrib')
-                    ds = ds.assign_coords(time=ds['time'] + ds['step'])
-                    ds = ds.swap_dims({'step': 'time'})
-                    ds_ecmwf.append(ds)
-                    ds.close()
-
-                    if 'u10' in ds.data_vars:
-                        ds_wind = xr.Dataset({'u10' : ds['u10'],
-                                            'v10': ds['v10']})
-                        wind = True
-                if file.endswith('.nc'):
-                    ds = xr.open_dataset(os.path.join(folder,file), engine='netcdf4')    
-                    ds_netcdf.append(ds)
-                    ds.close()
+            ds_ecmwf, ds_netcdf, ds_wind, wind = ReadFolder(folder)
 
     # else:
     #     logging.error('Add folder with ECMWF datasets.')
@@ -148,62 +137,58 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
     if copernicus:
         if user is None or pword is None:
             logging.error('No login credentials provided.')
-            return []
-        if border is None:
-            logging.error('No border provided. Cropped area must be added!')
-            return []
-        try:
-            ds_1 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_phy_anfc_PT1H-i', chunk_size_limit=0,
-                                                username=user, password = pword,
-                                                minimum_latitude=border[0], maximum_latitude=border[1],
-                                                minimum_longitude=border[2], maximum_longitude=border[3],
-                                                minimum_depth=0.5016462206840515, maximum_depth=0.5016462206840515,
-                                                start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
-                                                end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
-            ds_copernicus.append(ds_1)
-            ds_1.close()
-            
-            ds_2 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_wav_anfc_PT1H-i', chunk_size_limit=0,
-                                                username = user,  password = pword,
-                                                minimum_latitude=border[0], maximum_latitude=border[1],
-                                                minimum_longitude=border[2], maximum_longitude=border[3],
-                                                start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
-                                                end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
-            ds_copernicus.append(ds_2)
-            ds_2.close()
-            
-        except:
-            logging.warning('No data found in Copernicus Baltic. Searching in copernicus global...')
-            # ds_copernicus = []
+        else:
             try:
-                ds_1 = copernicusmarine.open_dataset(dataset_id='cmems_mod_glo_phy_anfc_0.083deg_PT1H-m', chunk_size_limit=0,
-                                                    username=user, password = pword, 
+                ds_1 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_phy_anfc_PT1H-i', chunk_size_limit=0,
+                                                    username=user, password = pword,
                                                     minimum_latitude=border[0], maximum_latitude=border[1],
                                                     minimum_longitude=border[2], maximum_longitude=border[3],
-                                                    minimum_depth=0.49402499198913574, maximum_depth=0.49402499198913574,
+                                                    minimum_depth=0.5016462206840515, maximum_depth=0.5016462206840515,
                                                     start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
                                                     end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
                 ds_copernicus.append(ds_1)
                 ds_1.close()
-
-                ds_2 = copernicusmarine.open_dataset(dataset_id='cmems_mod_glo_wav_anfc_0.083deg_PT3H-i', chunk_size_limit=0, 
-                                                    username=user, password = pword,
+                
+                ds_2 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_wav_anfc_PT1H-i', chunk_size_limit=0,
+                                                    username = user,  password = pword,
                                                     minimum_latitude=border[0], maximum_latitude=border[1],
                                                     minimum_longitude=border[2], maximum_longitude=border[3],
                                                     start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
                                                     end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
                 ds_copernicus.append(ds_2)
                 ds_2.close()
-
+                
             except:
-                logging.warning('No requested data in Copernicus Global.')
-        ds_3 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_wav_anfc_static', chunk_size_limit=0,
-                                            username = user, password = pword,
-                                            minimum_latitude=border[0], maximum_latitude=border[1],
-                                            minimum_longitude=border[2], maximum_longitude=border[3])
-        ds_copernicus.append(ds_3)
-        ds_3.close()
+                logging.warning('No data found in Copernicus Baltic. Searching in copernicus global...')
+                # ds_copernicus = []
+                try:
+                    ds_1 = copernicusmarine.open_dataset(dataset_id='cmems_mod_glo_phy_anfc_0.083deg_PT1H-m', chunk_size_limit=0,
+                                                        username=user, password = pword, 
+                                                        minimum_latitude=border[0], maximum_latitude=border[1],
+                                                        minimum_longitude=border[2], maximum_longitude=border[3],
+                                                        minimum_depth=0.49402499198913574, maximum_depth=0.49402499198913574,
+                                                        start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
+                                                        end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
+                    ds_copernicus.append(ds_1)
+                    ds_1.close()
 
+                    ds_2 = copernicusmarine.open_dataset(dataset_id='cmems_mod_glo_wav_anfc_0.083deg_PT3H-i', chunk_size_limit=0, 
+                                                        username=user, password = pword,
+                                                        minimum_latitude=border[0], maximum_latitude=border[1],
+                                                        minimum_longitude=border[2], maximum_longitude=border[3],
+                                                        start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
+                                                        end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
+                    ds_copernicus.append(ds_2)
+                    ds_2.close()
+
+                except:
+                    logging.warning('No requested data in Copernicus Global.')
+            ds_3 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_wav_anfc_static', chunk_size_limit=0,
+                                                username = user, password = pword,
+                                                minimum_latitude=border[0], maximum_latitude=border[1],
+                                                minimum_longitude=border[2], maximum_longitude=border[3])
+            ds_copernicus.append(ds_3)
+            ds_3.close()
                 
     if wind:
         if len(ds_netcdf)>0:
