@@ -48,41 +48,27 @@ def get_time_from_reader(agg, lst, time_type = None):
         logging.warning(f'Time type {time_type} is unsupported')
         return
 
-def PrepareStartTime(start_t, reader = None):
-    if isinstance(start_t, dt.datetime):
-        return start_t
-    elif isinstance(start_t, pd._libs.tslibs.timestamps.Timestamp):
-        return start_t
-    elif isinstance(start_t, int) or isinstance(start_t, str):
+def PrepareTime(time, reader = None, time_type = None):
+    placeholder = {'start':dt.datetime.now(),
+                   'end':dt.datetime.now() + dt.timedelta(day = 2)}
+    if isinstance(time, dt.datetime):
+        return time
+    elif isinstance(time, pd._libs.tslibs.timestamps.Timestamp):
+        return time
+    elif isinstance(time, int) or isinstance(time, str):
         try:
-            start = pd.to_datetime(start_t)
-            return start
+            time = pd.to_datetime(time)
+            return time
         except:
-            logging.warning(f'Unable to transform {start_t} start time into pandas Timesamp.')
-            start_t = None
-    elif start_t is None and reader is not None:
-        return get_time_from_reader('Min', reader, 'start')
+            logging.warning(f'Unable to transform {time} start time into pandas Timesamp.')
+            time = None
+    elif time is None and reader is not None and (time_type in placeholder.keys()):
+        Aggregations = {'start':'Min',
+                        'end':'Max'}
+        return get_time_from_reader(Aggregations[time_type], reader, time_type)
     else:
-        logging.error(f'Incorrect start time input {start_t}. Returning placeholder')
-        return dt.datetime.now()
-    
-def PrepareEndTime(end_t, reader = None):
-    if isinstance(end_t, dt.datetime):
-        return end_t
-    elif isinstance(end_t, pd._libs.tslibs.timestamps.Timestamp):
-        return end_t
-    elif isinstance(end_t, int) or isinstance(end_t, str):
-        try:
-            end = pd.to_datetime(end_t)
-            return end
-        except:
-            logging.warning(f'Unable to transform {end_t} start time into pandas Timesamp.')
-            end_t = None
-    elif end_t is None and reader is not None:
-        return get_time_from_reader('Max', reader, 'end')
-    else:
-        logging.error(f'Incorrect end time input {end_t}. Returning placeholder')
-        return dt.datetime.now() + dt.timedelta(day = 2)
+        logging.error(f'Incorrect end time input {time}. Returning placeholder')
+        return placeholder[time_type]
 
 def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
                    folder = None, concatenation =False, copernicus = False,
@@ -96,8 +82,8 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
     ds_copernicus = []
     ds_wind = []
     
-    start_t = PrepareStartTime(start_t)
-    end_t = PrepareEndTime(end_t)
+    start_t = PrepareTime(start_t)
+    end_t = PrepareTime(end_t)
     
     if folder != None:
         if concatenation:
@@ -352,8 +338,8 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
         reader = Reader(datasets, standard_name_mapping=std_names)
         
     # Prepare start and end times
-    start_t = PrepareStartTime(start_t, reader)
-    end_t = PrepareEndTime(end_t, reader)
+    start_t = PrepareTime(start_t, reader, 'start')
+    end_t = PrepareTime(end_t, reader, 'end')
     
     if file_name == None:
         m = str(model).split('.')[-1][:-2]
