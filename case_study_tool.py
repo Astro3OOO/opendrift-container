@@ -50,7 +50,7 @@ def get_time_from_reader(agg, lst, time_type = None):
 
 def PrepareTime(time, reader = None, time_type = None):
     placeholder = {'start':dt.datetime.now(),
-                   'end':dt.datetime.now() + dt.timedelta(day = 2)}
+                   'end':dt.datetime.now() + dt.timedelta(days = 2)}
     if isinstance(time, dt.datetime):
         return time
     elif isinstance(time, pd._libs.tslibs.timestamps.Timestamp):
