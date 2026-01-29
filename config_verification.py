@@ -12,7 +12,7 @@ logging.basicConfig(
 SIMULATION_KEYS = ['lw_obj', 'model', 'start_position', 'start_t', 'end_t',
                   'num', 'rad', 'ship', 'wdf', 'orientation', 'seed_type',
                   'time_step', 'configurations', 'file_name', 'vocabulary',
-                  'backtracking', 'shpfile']
+                  'backtracking', 'shpfile', 'oil_type']
 DATASET_KEYS = ['start_t', 'end_t', 'border', 'folder', 'concatenation',  'copernicus', 'user', 'pword']
 REQUIRED_KEYS = ['model','start_position', 'start_t', 'end_t']
 VOC = ["Copernicus", "ECMWF", "Copernicus_edited"]
@@ -197,10 +197,6 @@ def check_time_settings(flag, file, sim_vars, data_vars):
         else:    
             flag = False
             logging.error(f"Start time: {start} must be earlier than end time: {end}.")   
-    
-
-    elif bt and isinstance(time_step, int) and time_step < 0:
-        sim_vars['time_step'] = time_step
     else:
         logging.warning(f"Invalid or missing time_step: {time_step}. Must be a positive integer.")
         
@@ -336,6 +332,8 @@ def verify_config_file(file_path):
                 sim_vars = check_leeway(config, sim_vars)
             case 'ShipDrift':
                 sim_vars = check_shipdrift(config, sim_vars)
+            case 'OpenOil':
+                sim_vars = check_openoil(config, sim_vars)
             case _:
                 logging.error(f"Unknown model type: {config['model']}")
                 flag = False
