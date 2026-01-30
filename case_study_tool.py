@@ -21,6 +21,10 @@ logger_od.setLevel(logging.CRITICAL)
 logger_cop = logging.getLogger('copernicusmarine') 
 logger_cop.setLevel(logging.WARNING)
 
+MODEL_DICT = {'OceanDrift':OceanDrift,
+              'Leeway':Leeway,
+              'ShipDrift':ShipDrift,
+              'OpenOil': OpenOil}
 
 def get_time_from_reader(agg, lst, time_type = None):
     types = ['start', 'end']
@@ -235,59 +239,37 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
         logging.error('No dataset to return.')
         return []                  
 
-def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_type, orientation, oil_type, shpfile):
-    
+def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_type, orientation, oil_type, shpfile=None):
+    params = dict(
+        lat = start_position[0],
+        lon = start_position[1],
+        number = num,
+        radius=rad,
+        time = start_t
+    )
+            
     if model == OceanDrift:
-        if seed_type == 'elements':
-            o.seed_elements(lat = start_position[0], lon = start_position[1], number = num, radius=rad, wind_drift_factor = wdf, time = start_t)
-        elif seed_type == 'cone':
-            o.seed_cone(lat = start_position[0], lon = start_position[1], number = num, radius=rad, wind_drift_factor = wdf, time = start_t)
-        else:
-            logging.error('Unsupported seed type')
-        return o
-    
-    if model == Leeway:
-        if seed_type == 'elements':
-            o.seed_elements(lat = start_position[0], lon = start_position[1], number = num, radius=rad, object_type = lw_obj, time = start_t)
-        elif seed_type == 'cone':
-            o.seed_cone(lat = start_position[0], lon = start_position[1], number = num, radius=rad, object_type = lw_obj, time = start_t)
-        else:
-            logging.error('Unsupported seed type')
-        return o
-    
-    if model == ShipDrift:
+        params.update(wind_drift_factor = wdf)
+    elif model == Leeway:
+        params.update(object_type = lw_obj)
+    elif model == ShipDrift:
         length, beam, height, draft = ship
         o.set_config('seed:orientation', orientation)
-        if seed_type == 'elements':
-            o.seed_elements(lat = start_position[0], lon = start_position[1], number = num,
-                            length = length, beam = beam, height = height, draft = draft, radius=rad, time = start_t)
-        elif seed_type == 'cone':
-            o.seed_cone(lat = start_position[0], lon = start_position[1], number = num, radius=rad,   
-                        length = length, beam = beam, height = height, draft = draft, time = start_t)
-        else:
-            logging.error('Unsupported seed type')
+        params.update(length = length, beam = beam, height = height, draft = draft)
+    elif model == OpenOil:
+        params.update( oil_type=oil_type)
+    else:
+        logging.error(f'Model {model} is not implemented yet.')
         return o
-
-    if model == OpenOil:
-        if seed_type == 'elements':
-            o.seed_elements(lat = start_position[0], lon = start_position[1], number = num, radius=rad, oil_type=oil_type, time = start_t)
-        elif seed_type == 'cone':
-            o.seed_cone(lat = start_position[0], lon = start_position[1], number = num, radius=rad, oil_type=oil_type, time = start_t)
-        # elif seed_type == 'shapefile':
-        #     o.seed_from_shapefile(shpfile, number = num, radius=rad, oil_type=oil_type, time = start_t)
-        else:
+    
+    match seed_type:
+        case 'elements':
+            o.seed_elements(**params)
+        case 'cone':
+            o.seed_cone(**params)
+        case _:
             logging.error('Unsupported seed type')
-        return o
-        
-    
-    logging.error(f'Model {model} is not implemented yet.')
-    
     return o
-
-model_dict = {'OceanDrift':OceanDrift,
-              'Leeway':Leeway,
-              'ShipDrift':ShipDrift,
-              'OpenOil': OpenOil}
 
 def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
                end_t=None, datasets=None, std_names=None, num=100,
@@ -310,10 +292,10 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
     #         logging.error('Seed type is selected as seeding from shape, but no shape file was provided')
     #         return    
         
-    if model not in model_dict.keys():
-        logging.error(f'Model {model} is not supported. Choose one of the following: {list(model_dict.keys())}')
+    if model not in MODEL_DICT.keys():
+        logging.error(f'Model {model} is not supported. Choose one of the following: {list(MODEL_DICT.keys())}')
         return
-    model = model_dict[model]   
+    model = MODEL_DICT[model]   
     
     
     # Create readers
