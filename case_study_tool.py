@@ -2,6 +2,7 @@ import xarray as xr
 from opendrift.models.oceandrift import OceanDrift
 from opendrift.models.leeway import Leeway
 from opendrift.models.shipdrift import ShipDrift
+from opendrift.models.openoil import OpenOil
 import datetime as dt
 import zoneinfo
 import pandas as pd
@@ -20,14 +21,23 @@ logger_od.setLevel(logging.CRITICAL)
 logger_cop = logging.getLogger('copernicusmarine') 
 logger_cop.setLevel(logging.WARNING)
 
+MODEL_DICT = {'OceanDrift':OceanDrift,
+              'Leeway':Leeway,
+              'ShipDrift':ShipDrift,
+              'OpenOil': OpenOil}
 
-def get_time_from_reader(agg, lst, type):
-    if type == 'start':
+def get_time_from_reader(agg, lst, time_type = None):
+    types = ['start', 'end']
+    if time_type in types:
         if type(lst) == list:
             new_lst = []
             for element in lst:
-                if type(element.start_time) == dt.datetime or type(element) == pd._libs.tslibs.timestamps.Timestamp:
-                    new_lst.append(element.start_time)
+                reader_times = {'start':element.start_time,
+                                'end': element.end_time}
+                target = reader_times[time_type]
+                if (type(target) == dt.datetime or 
+                    type(element) == pd._libs.tslibs.timestamps.Timestamp):
+                    new_lst.append(target)
             if agg == 'Max':
                 return max(new_lst)
             elif agg == 'Min':
@@ -35,60 +45,56 @@ def get_time_from_reader(agg, lst, type):
             else:
                 logging.warning(f'Aggregation {agg} is not supported')
         else:
-            return lst.start_time
-    elif type == 'end':
-        if type(lst) == list:
-            new_lst = []
-            for element in lst:
-                if type(element.end_time) == dt.datetime or type(element) == pd._libs.tslibs.timestamps.Timestamp:
-                    new_lst.append(element.end_time)
-            if agg == 'Max':
-                return max(new_lst)
-            elif agg == 'Min':
-                return min(new_lst)
-            else:
-                logging.warning(f'Aggregation {agg} is not supported')
-        else:
-            return lst.end_time
+            reader_times = {'start':lst.start_time,
+                            'end': lst.end_time}
+            return reader_times[time_type]
     else:
-        logging.warning(f'Type {type} is unsupported')
+        logging.warning(f'Time type {time_type} is unsupported')
         return
 
-def PrepareStartTime(start_t, reader = None):
-    if isinstance(start_t, dt.datetime):
-        return start_t
-    elif isinstance(start_t, pd._libs.tslibs.timestamps.Timestamp):
-        return start_t
-    elif isinstance(start_t, int) or isinstance(start_t, str):
+def PrepareTime(time, reader = None, time_type = None):
+    placeholder = {'start':dt.datetime.now(),
+                   'end':dt.datetime.now() + dt.timedelta(days = 2)}
+    if isinstance(time, dt.datetime):
+        return time
+    elif isinstance(time, pd._libs.tslibs.timestamps.Timestamp):
+        return time
+    elif isinstance(time, int) or isinstance(time, str):
         try:
-            start = pd.to_datetime(start_t)
-            return start
+            time = pd.to_datetime(time)
+            return time
         except:
-            logging.warning(f'Unable to transform {start_t} start time into pandas Timesamp.')
-            start_t = None
-    elif start_t is None and reader is not None:
-        return get_time_from_reader('Min', reader, 'start')
+            logging.warning(f'Unable to transform {time} start time into pandas Timesamp.')
+            time = None
+    elif time is None and reader is not None and (time_type in placeholder.keys()):
+        Aggregations = {'start':'Min',
+                        'end':'Max'}
+        return get_time_from_reader(Aggregations[time_type], reader, time_type)
     else:
-        logging.error(f'Incorrect start time input {start_t}. Returning placeholder')
-        return dt.datetime.now()
-    
-def PrepareEndTime(end_t, reader = None):
-    if isinstance(end_t, dt.datetime):
-        return end_t
-    elif isinstance(end_t, pd._libs.tslibs.timestamps.Timestamp):
-        return end_t
-    elif isinstance(end_t, int) or isinstance(end_t, str):
-        try:
-            end = pd.to_datetime(end_t)
-            return end
-        except:
-            logging.warning(f'Unable to transform {end_t} start time into pandas Timesamp.')
-            end_t = None
-    elif end_t is None and reader is not None:
-        return get_time_from_reader('Max', reader, 'end')
-    else:
-        logging.error(f'Incorrect end time input {end_t}. Returning placeholder')
-        return dt.datetime.now() + dt.timedelta(day = 2)
+        logging.error(f'Incorrect end time input {time}. Returning placeholder')
+        return placeholder[time_type]
+
+def ReadFolder(folder):
+    wind_bool = False
+    ecmwf = []
+    wind = []
+    netcdf = []
+    for file in os.listdir(folder):
+        if file.endswith('.grib'):
+            ds = xr.open_dataset(os.path.join(folder,file), engine='cfgrib')
+            ds = ds.assign_coords(time=ds['time'] + ds['step'])
+            ds = ds.swap_dims({'step': 'time'})
+            ecmwf.append(ds)
+            ds.close()
+            if 'u10' in ds.data_vars:
+                wind.append(xr.Dataset({'u10' : ds['u10'],
+                                    'v10': ds['v10']}))
+                wind_bool = True
+        if file.endswith('.nc'):
+            ds = xr.open_dataset(os.path.join(folder,file), engine='netcdf4')    
+            netcdf.append(ds)
+            ds.close()
+    return ecmwf, netcdf, wind, wind_bool
 
 def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
                    folder = None, concatenation =False, copernicus = False,
@@ -102,34 +108,16 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
     ds_copernicus = []
     ds_wind = []
     
-    start_t = PrepareStartTime(start_t)
-    end_t = PrepareEndTime(end_t)
+    start_t = PrepareTime(start_t)
+    end_t = PrepareTime(end_t)
     
     if folder != None:
         if concatenation:
             for subdir in os.listdir(folder):
-                buffer_ecmwf = []
-                buffer_netcdf = []
-                buffer_wind = []
                 full_path = os.path.join(folder, subdir)
                 if os.path.isdir(full_path):
-                    for file in os.listdir(full_path):
-                        if file.endswith('.grib'):
-                            ds = xr.open_dataset(os.path.join(folder,subdir,file), engine='cfgrib')
-                            ds = ds.assign_coords(time=ds['time'] + ds['step'])
-                            ds = ds.swap_dims({'step': 'time'})
-                            buffer_ecmwf.append(ds)
-                            ds.close()
-                            if 'u10' in ds.data_vars:
-                                buffer_wind.append(xr.Dataset({'u10' : ds['u10'],
-                                                    'v10': ds['v10']}))
-                                wind = True
-                        if file.endswith('.nc'):
-                            ds = xr.open_dataset(os.path.join(folder,subdir,file), engine='netcdf4')    
-                            buffer_netcdf.append(ds)
-                            ds.close()
+                    buffer_ecmwf, buffer_netcdf, buffer_wind, wind = ReadFolder(full_path)
 
-                            
                     buffers = {'ecmwf': buffer_ecmwf, 'netcdf': buffer_netcdf, 'wind': buffer_wind}
                     targets = {'ecmwf': ds_ecmwf, 'netcdf': ds_netcdf, 'wind': ds_wind}
 
@@ -145,22 +133,7 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
 
         
         else:
-            for file in os.listdir(folder):
-                if file.endswith('.grib'):
-                    ds = xr.open_dataset(os.path.join(folder,file), engine='cfgrib')
-                    ds = ds.assign_coords(time=ds['time'] + ds['step'])
-                    ds = ds.swap_dims({'step': 'time'})
-                    ds_ecmwf.append(ds)
-                    ds.close()
-
-                    if 'u10' in ds.data_vars:
-                        ds_wind = xr.Dataset({'u10' : ds['u10'],
-                                            'v10': ds['v10']})
-                        wind = True
-                if file.endswith('.nc'):
-                    ds = xr.open_dataset(os.path.join(folder,file), engine='netcdf4')    
-                    ds_netcdf.append(ds)
-                    ds.close()
+            ds_ecmwf, ds_netcdf, ds_wind, wind = ReadFolder(folder)
 
     # else:
     #     logging.error('Add folder with ECMWF datasets.')
@@ -168,62 +141,58 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
     if copernicus:
         if user is None or pword is None:
             logging.error('No login credentials provided.')
-            return []
-        if border is None:
-            logging.error('No border provided. Cropped area must be added!')
-            return []
-        try:
-            ds_1 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_phy_anfc_PT1H-i', chunk_size_limit=0,
-                                                username=user, password = pword,
-                                                minimum_latitude=border[0], maximum_latitude=border[1],
-                                                minimum_longitude=border[2], maximum_longitude=border[3],
-                                                minimum_depth=0.5016462206840515, maximum_depth=0.5016462206840515,
-                                                start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
-                                                end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
-            ds_copernicus.append(ds_1)
-            ds_1.close()
-            
-            ds_2 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_wav_anfc_PT1H-i', chunk_size_limit=0,
-                                                username = user,  password = pword,
-                                                minimum_latitude=border[0], maximum_latitude=border[1],
-                                                minimum_longitude=border[2], maximum_longitude=border[3],
-                                                start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
-                                                end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
-            ds_copernicus.append(ds_2)
-            ds_2.close()
-            
-        except:
-            logging.warning('No data found in Copernicus Baltic. Searching in copernicus global...')
-            # ds_copernicus = []
+        else:
             try:
-                ds_1 = copernicusmarine.open_dataset(dataset_id='cmems_mod_glo_phy_anfc_0.083deg_PT1H-m', chunk_size_limit=0,
-                                                    username=user, password = pword, 
+                ds_1 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_phy_anfc_PT1H-i', chunk_size_limit=0,
+                                                    username=user, password = pword,
                                                     minimum_latitude=border[0], maximum_latitude=border[1],
                                                     minimum_longitude=border[2], maximum_longitude=border[3],
-                                                    minimum_depth=0.49402499198913574, maximum_depth=0.49402499198913574,
+                                                    minimum_depth=0.5016462206840515, maximum_depth=0.5016462206840515,
                                                     start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
                                                     end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
                 ds_copernicus.append(ds_1)
                 ds_1.close()
-
-                ds_2 = copernicusmarine.open_dataset(dataset_id='cmems_mod_glo_wav_anfc_0.083deg_PT3H-i', chunk_size_limit=0, 
-                                                    username=user, password = pword,
+                
+                ds_2 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_wav_anfc_PT1H-i', chunk_size_limit=0,
+                                                    username = user,  password = pword,
                                                     minimum_latitude=border[0], maximum_latitude=border[1],
                                                     minimum_longitude=border[2], maximum_longitude=border[3],
                                                     start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
                                                     end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
                 ds_copernicus.append(ds_2)
                 ds_2.close()
-
+                
             except:
-                logging.warning('No requested data in Copernicus Global.')
-        ds_3 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_wav_anfc_static', chunk_size_limit=0,
-                                            username = user, password = pword,
-                                            minimum_latitude=border[0], maximum_latitude=border[1],
-                                            minimum_longitude=border[2], maximum_longitude=border[3])
-        ds_copernicus.append(ds_3)
-        ds_3.close()
+                logging.warning('No data found in Copernicus Baltic. Searching in copernicus global...')
+                # ds_copernicus = []
+                try:
+                    ds_1 = copernicusmarine.open_dataset(dataset_id='cmems_mod_glo_phy_anfc_0.083deg_PT1H-m', chunk_size_limit=0,
+                                                        username=user, password = pword, 
+                                                        minimum_latitude=border[0], maximum_latitude=border[1],
+                                                        minimum_longitude=border[2], maximum_longitude=border[3],
+                                                        minimum_depth=0.49402499198913574, maximum_depth=0.49402499198913574,
+                                                        start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
+                                                        end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
+                    ds_copernicus.append(ds_1)
+                    ds_1.close()
 
+                    ds_2 = copernicusmarine.open_dataset(dataset_id='cmems_mod_glo_wav_anfc_0.083deg_PT3H-i', chunk_size_limit=0, 
+                                                        username=user, password = pword,
+                                                        minimum_latitude=border[0], maximum_latitude=border[1],
+                                                        minimum_longitude=border[2], maximum_longitude=border[3],
+                                                        start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
+                                                        end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
+                    ds_copernicus.append(ds_2)
+                    ds_2.close()
+
+                except:
+                    logging.warning('No requested data in Copernicus Global.')
+            ds_3 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_wav_anfc_static', chunk_size_limit=0,
+                                                username = user, password = pword,
+                                                minimum_latitude=border[0], maximum_latitude=border[1],
+                                                minimum_longitude=border[2], maximum_longitude=border[3])
+            ds_copernicus.append(ds_3)
+            ds_3.close()
                 
     if wind:
         if len(ds_netcdf)>0:
@@ -270,52 +239,43 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
         logging.error('No dataset to return.')
         return []                  
 
-def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_type, orientation):
-    
+def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_type, orientation, oil_type, shpfile=None):
+    params = dict(
+        lat = start_position[0],
+        lon = start_position[1],
+        number = num,
+        radius=rad,
+        time = start_t
+    )
+            
     if model == OceanDrift:
-        if seed_type == 'elements':
-            o.seed_elements(lat = start_position[0], lon = start_position[1], number = num, radius=rad, wind_drift_factor = wdf, time = start_t)
-        elif seed_type == 'cone':
-            o.seed_cone(lat = start_position[0], lon = start_position[1], number = num, radius=rad, wind_drift_factor = wdf, time = start_t)
-        else:
-            logging.error('Unsupported seed type')
-        return o
-    
-    if model == Leeway:
-        if seed_type == 'elements':
-            o.seed_elements(lat = start_position[0], lon = start_position[1], number = num, radius=rad, object_type = lw_obj, time = start_t)
-        elif seed_type == 'cone':
-            o.seed_cone(lat = start_position[0], lon = start_position[1], number = num, radius=rad, object_type = lw_obj, time = start_t)
-        else:
-            logging.error('Unsupported seed type')
-        return o
-    
-    if model == ShipDrift:
+        params.update(wind_drift_factor = wdf)
+    elif model == Leeway:
+        params.update(object_type = lw_obj)
+    elif model == ShipDrift:
         length, beam, height, draft = ship
         o.set_config('seed:orientation', orientation)
-        if seed_type == 'elements':
-            o.seed_elements(lat = start_position[0], lon = start_position[1], number = num,
-                            length = length, beam = beam, height = height, draft = draft, radius=rad, time = start_t)
-        elif seed_type == 'cone':
-            o.seed_cone(lat = start_position[0], lon = start_position[1], number = num, radius=rad,   
-                        length = length, beam = beam, height = height, draft = draft, time = start_t)
-        else:
-            logging.error('Unsupported seed type')
+        params.update(length = length, beam = beam, height = height, draft = draft)
+    elif model == OpenOil:
+        params.update( oil_type=oil_type)
+    else:
+        logging.error(f'Model {model} is not implemented yet.')
         return o
     
-    logging.error(f'Model {model} is not implemented yet.')
-    
+    match seed_type:
+        case 'elements':
+            o.seed_elements(**params)
+        case 'cone':
+            o.seed_cone(**params)
+        case _:
+            logging.error('Unsupported seed type')
     return o
-
-model_dict = {'OceanDrift':OceanDrift,
-              'Leeway':Leeway,
-              'ShipDrift':ShipDrift}
 
 def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
                end_t=None, datasets=None, std_names=None, num=100,
                rad=0, ship=[62, 8, 10, 5], wdf=0.02, orientation = 'random',
                delay=False, multi_rad=False, seed_type=None, time_step = None,
-               configurations = None, file_name = None, vocabulary = None):
+               configurations = None, file_name = None, oil_type='GENERIC BUNKER C', shpfile=None):
     
     # Check main requirments
     if start_position == None:
@@ -326,10 +286,16 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
         return
     if seed_type == None:
         seed_type = 'elements'
-    if model not in model_dict.keys():
-        logging.error(f'Model {model} is not supported. Choose one of the following: {list(model_dict.keys())}')
+        
+    # if seed_type == 'shapefile':
+    #     if shpfile == None:
+    #         logging.error('Seed type is selected as seeding from shape, but no shape file was provided')
+    #         return    
+        
+    if model not in MODEL_DICT.keys():
+        logging.error(f'Model {model} is not supported. Choose one of the following: {list(MODEL_DICT.keys())}')
         return
-    model = model_dict[model]   
+    model = MODEL_DICT[model]   
     
     
     # Create readers
@@ -339,8 +305,8 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
         reader = Reader(datasets, standard_name_mapping=std_names)
         
     # Prepare start and end times
-    start_t = PrepareStartTime(start_t, reader)
-    end_t = PrepareEndTime(end_t, reader)
+    start_t = PrepareTime(start_t, reader, 'start')
+    end_t = PrepareTime(end_t, reader, 'end')
     
     if file_name == None:
         m = str(model).split('.')[-1][:-2]
@@ -370,7 +336,8 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
     # Seed
 
     o = seed(o=o, model=model, lw_obj=lw_obj, num = num, rad = rad, start_t = start_t, 
-             start_position=start_position, ship=ship, wdf = wdf, seed_type=seed_type, orientation=orientation)
+             start_position=start_position, ship=ship, wdf = wdf, seed_type=seed_type,
+             orientation=orientation, oil_type=oil_type, shpfile=shpfile)
     # Run
     if time_step is None:
         o.run(end_time=end_t, outfile = file_name)
