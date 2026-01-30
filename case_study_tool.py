@@ -274,7 +274,7 @@ def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_ty
 def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
                end_t=None, datasets=None, std_names=None, num=100,
                rad=0, ship=[62, 8, 10, 5], wdf=0.02, orientation = 'random',
-               delay=False, multi_rad=False, seed_type=None, time_step = None,
+               delay=False, multi_rad=False, seed_type=None, time_step = None, vocabulary = None,
                configurations = None, file_name = None, oil_type='GENERIC BUNKER C', shpfile=None):
     
     # Check main requirments
