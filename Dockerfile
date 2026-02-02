@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY *.py /opendrift-container/
 COPY DATA /opendrift-container/DATA/
 COPY INPUT /opendrift-container/INPUT/
+COPY tests /opendrift-container/tests
 # COPY SHAPEFILE /opendrift-container/SHAPEFILE/
 
 
