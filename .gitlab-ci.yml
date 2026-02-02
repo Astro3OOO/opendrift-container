@@ -9,7 +9,7 @@ build-image:
     - shell
   script:
     - docker build -t opendrift-container .
-    - docker run --rm opendrift-container pytest tests
+    - docker run --rm opendrift-container pytest tests/
     - docker tag opendrift-container 10.142.47.233:80/fc/opendrift-container:latest
     - docker login 10.142.47.233:80 -u="$HARBOR_USER" -p="$HARBOR_PASSWORD"
     - docker push 10.142.47.233:80/fc/opendrift-container:latest
