@@ -9,6 +9,7 @@ opendrift-container/
 ├── main.py                     # pamata programma
 ├── config_verification.py      # JSON faila validācija un sadalīšana uz simulācijas un datu konfigurācijam
 ├── case_study_tool.py          # simulācijas un datu sagatavošanas funkcijas
+├── dataset_verification.py     # Datasetu un config failu kombinēta validācija. Pagaidāp pārbauda vai ievadītais laiks pārklājās as datu laikiem.
 │
 ├── DATA/
 │   └── VariableMapping.json    # Iekšeja vārdnīca priekš korektu parametru nosaukumu ielasīšanās
