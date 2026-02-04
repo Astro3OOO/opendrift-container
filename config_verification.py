@@ -353,6 +353,7 @@ def verify_config_file(file_path):
         if vc is not None:
             if vc in VOC:
                 sim_vars['vocabulary'] = vc
+                data_vars['vocabulary'] = vc
             else:
                 logging.error(f"Unknown variable mapping vocabulary: {vc}")
                 flag = False

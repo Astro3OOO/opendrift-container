@@ -98,7 +98,7 @@ def ReadFolder(folder):
 
 def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
                    folder = None, concatenation =False, copernicus = False,
-                   user = None, pword = None):
+                   user = None, pword = None, vocabulary = None):
     wind = False
     # Lists of datasets that will be used in Reader.
     # List may consist of singe datstets (eg atmoshperic model, wind model) 
@@ -196,48 +196,28 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
                 
     if wind:
         if len(ds_netcdf)>0:
-            ds_netcdf.append(ds_wind)
+            ds_netcdf += ds_wind
         if len(ds_copernicus)>0:
-            ds_copernicus.append(ds_wind)
+            ds_copernicus += ds_wind
     
-    if folder != None and copernicus:
-        if len(ds_netcdf)>0 and len(ds_ecmwf)>0 and len(ds_copernicus)>0:
-            logging.info('Returning 3 datasets : [folder.grib, folder.nc, copernicus]')
-            return [ds_ecmwf, ds_netcdf, ds_copernicus]
-        elif len(ds_netcdf)>0 and len(ds_copernicus)>0:
-            logging.info('Returning 2 datasets : [folder.nc, copernicus]')
-            return [ds_netcdf, ds_copernicus]
-        elif len(ds_ecmwf)>0 and len(ds_copernicus)>0:
-            logging.info('Returning 2 datasets : [folder.grib, copernicus]')
-            return [ds_ecmwf, ds_copernicus]
-        elif len(ds_copernicus)>0:
-            logging.info('Returnng only Copernicus dataset, as the other one is empty.')
-        else:
-            logging.error(' Folder data and copernicus data flags were enabled but no dataset was provided. Returning empty list.')
-            return []
-    elif folder != None:
-        if len(ds_netcdf)>0 and len(ds_ecmwf)>0:
-            logging.info('Returning 2 datasets : [folder.grib, folder.nc]')
-            return [ds_ecmwf, ds_netcdf]
-        elif len(ds_netcdf)>0:
-            logging.info('Returning 1 datasets : [folder.nc]')
-            return ds_netcdf
-        elif len(ds_ecmwf)>0:
-            logging.info('Returning 1 datasets : [folder.grib]')
-            return ds_ecmwf
-        else:
-            logging.error('Folder data flag was enabled but no dataset was provided. Returning empty list.')
-            return []
-    elif copernicus:
-        if len(ds_copernicus)>0:
-            logging.info('Returning 1 datasets : [copernicus]')
-            return ds_copernicus
-        else:
-            logging.error(' Copernicus flag was enabled but no dataset was provided. Returning empty list.')
-            return []
+    result = []
+    if vocabulary == 'ECMWF':
+        result += ds_ecmwf
+        logging.info('Returnng ECMWF dataset')
+    elif (vocabulary == 'Copernicus') | (vocabulary == 'Copernicus_edited'):
+        if len(ds_netcdf) > 0:
+            result += ds_netcdf
+            logging.info('Returnng Copernicus NetCDF dataset')
+        if len(ds_copernicus) > 0:
+            result += ds_copernicus
+            logging.info('Returnng Copernicus requested dataset')
+    elif len(ds_netcdf) > 0:
+        result += ds_netcdf
+        logging.info('Returnng unspecified NetCDF dataset')
     else:
         logging.error('No dataset to return.')
-        return []                  
+
+    return result 
 
 def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_type, orientation, oil_type, shpfile=None):
     params = dict(
