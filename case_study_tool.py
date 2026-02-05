@@ -74,26 +74,56 @@ def PrepareTime(time, reader = None, time_type = None):
         logging.error(f'Incorrect end time input {time}. Returning placeholder')
         return placeholder[time_type]
 
-def ReadFolder(folder):
-    wind_bool = False
-    ecmwf = []
-    wind = []
-    netcdf = []
-    for file in os.listdir(folder):
+def OpenAndAppend(fp=None, file=None, wind_bool = False, ecmwf = [],
+                  wind = [], netcdf = []):
+    '''
+    File can be given as: 1) file = path/to/file.format 2) fp = path/to/file.format 3) file = file.format; fp = path/to/
+    '''
+    if os.path.exists(fp) and file:
+        full_path = os.path.join(fp,file)
+    elif os.path.exists(fp):
+        full_path = fp
+    elif os.path.exists(file):
+        full_path = file
+    else:
+        logging.error(f'Given file {file} anp path {fp} are invalid. Provide valid paths.')
+        return wind_bool, ecmwf, wind, netcdf 
+    
+    if os.path.isfile(full_path):
         if file.endswith('.grib'):
-            ds = xr.open_dataset(os.path.join(folder,file), engine='cfgrib')
+            ds = xr.open_dataset(full_path, engine='cfgrib')
             ds = ds.assign_coords(time=ds['time'] + ds['step'])
             ds = ds.swap_dims({'step': 'time'})
             ecmwf.append(ds)
-            ds.close()
             if 'u10' in ds.data_vars:
                 wind.append(xr.Dataset({'u10' : ds['u10'],
                                     'v10': ds['v10']}))
                 wind_bool = True
-        if file.endswith('.nc'):
-            ds = xr.open_dataset(os.path.join(folder,file), engine='netcdf4')    
+            ds.close()
+            logging.info(f'Readed GRIB file {full_path}')
+        elif file.endswith('.nc'):
+            ds = xr.open_dataset(full_path, engine='netcdf4')    
             netcdf.append(ds)
             ds.close()
+            logging.info(f'Readed NetCDF file {full_path}')
+        else:
+            logging.warning(f'Unknow file type {file}. Only .grib and .nc are currently supported.')
+    else:
+        logging.error(f'Given file {file} is not valid. provide a single file.')
+    return wind_bool, ecmwf, wind, netcdf 
+
+def ReadFolder(path_to):
+    wind_bool = False
+    ecmwf = []
+    wind = []
+    netcdf = []
+    if os.path.isdir(path_to):
+        for file in os.listdir(path_to):
+            wind_bool, ecmwf, wind, netcdf = OpenAndAppend(path_to, file, wind_bool, ecmwf, wind, netcdf)
+    elif os.path.isfile(path_to):
+        wind_bool, ecmwf, wind, netcdf = OpenAndAppend(path_to, None, wind_bool, ecmwf, wind, netcdf)
+    else:
+        logging.error(f'Given path {path_to} is not valid. provide a single file or path to folder.')
     return ecmwf, netcdf, wind, wind_bool
 
 def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
@@ -204,7 +234,7 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
     if vocabulary == 'ECMWF':
         result += ds_ecmwf
         logging.info('Returnng ECMWF dataset')
-    elif (vocabulary == 'Copernicus') | (vocabulary == 'Copernicus_edited'):
+    elif (vocabulary == 'Copernicus') or (vocabulary == 'Copernicus_edited'):
         if len(ds_netcdf) > 0:
             result += ds_netcdf
             logging.info('Returnng Copernicus NetCDF dataset')
