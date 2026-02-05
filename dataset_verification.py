@@ -1,5 +1,6 @@
 from case_study_tool import PrepareTime
 import logging
+import os
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,3 +35,13 @@ def DatasetTimeValid(dataset, start_t, end_t) -> bool:
     else:
         flag = check_start_end(dataset, start_t, end_t)
     return flag 
+
+def SelectDataSet(start_t, end_t, folder) -> dict:
+    changes = {}
+    start_t = PrepareTime(start_t)
+    end_t = PrepareTime(end_t)
+    
+    
+    
+    
+    return changes 

@@ -12,7 +12,7 @@ logging.basicConfig(
 SIMULATION_KEYS = ['lw_obj', 'model', 'start_position', 'start_t', 'end_t',
                   'num', 'rad', 'ship', 'wdf', 'orientation', 'seed_type',
                   'time_step', 'configurations', 'file_name', 'vocabulary',
-                  'backtracking', 'shpfile', 'oil_type']
+                  'backtracking', 'shpfile', 'oil_type', 'selection']
 DATASET_KEYS = ['start_t', 'end_t', 'border', 'folder', 'concatenation',  'copernicus', 'user', 'pword']
 REQUIRED_KEYS = ['model','start_position', 'start_t', 'end_t']
 VOC = ["Copernicus", "ECMWF", "Copernicus_edited"]
@@ -358,6 +358,8 @@ def verify_config_file(file_path):
                 logging.error(f"Unknown variable mapping vocabulary: {vc}")
                 flag = False
         
+        sel = config.get('selection', False)
+        sim_vars['selection'] = sel
         
     else:
         logging.error('Missing required keys in the configuration file.')

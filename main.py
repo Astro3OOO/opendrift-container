@@ -1,6 +1,6 @@
 from config_verification import verify_config_file
 from case_study_tool import simulation, PrepareDataSet
-from dataset_verification import DatasetTimeValid
+from dataset_verification import DatasetTimeValid, SelectDataSet
 import sys
 import json 
 import logging
@@ -52,7 +52,23 @@ def main() -> int:
         return 5
 
     logging.info("Input valid. Preparing datasets...")
-
+    
+    '''
+        SELECTION OF DATA FILES
+    Will edit data_vars['folder'] from mounted /DATSETS to symlinked /SELECTED
+    '''
+    
+    select = sim_vars.get('selection')
+    start_t = sim_vars.get('start_t')
+    end_t = sim_vars.get('end_t')
+    if select:
+        try:
+            folder = data_vars.get('folder')
+            data_vars.update(SelectDataSet(start_t, end_t, folder))
+        except Exception as e:
+            logging.exception(f'Dataset selection failed: {e}')
+            return 10
+        logging.info(f'Data is selected. Reading...')
     try:
         ds = PrepareDataSet(**data_vars)
     except Exception as e:
@@ -66,8 +82,6 @@ def main() -> int:
         logging.error(f"Requested vocabulary '{vc}' not found.")
         return 7
     
-    start_t = sim_vars.get('start_t')
-    end_t = sim_vars.get('end_t')
     if not DatasetTimeValid(ds, start_t, end_t):
         logging.error('Dataset time validation failed. ')
         return 8
