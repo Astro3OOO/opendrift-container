@@ -1,4 +1,4 @@
-from case_study_tool import PrepareTime
+from case_study_tool import PrepareTime, ResolvePath
 import logging
 import os
 from pathlib import Path
@@ -55,8 +55,10 @@ def CheckStructure(folder) -> str:
         return 'mixed'
 
 def ReturnTimeInterval(file) -> dict:
+    # Reads metadata and return {path : [t_first, t_last]}
     interval = {}
     file = Path(file)
+    
     if file.is_file():
         if file.suffix == '.grib':
             with xr.open_dataset(file) as ds:
@@ -77,7 +79,9 @@ def ReturnTimeInterval(file) -> dict:
 def ReadRootDir(root) -> dict:
     pth = Path(root)
     result = {}
+    # checks whetere folder is flat or nested 
     struct = CheckStructure(pth)
+    # append all files with their intervals
     if struct == 'files':
         for file in pth.iterdir():
             result.update(ReturnTimeInterval(file))
@@ -109,12 +113,38 @@ def Matching(start_t, end_t, all_paths) -> list:
             matching_paths.append(path) 
     return matching_paths
 
+def ReRoot(paths):
+    select_dir = ResolvePath("SELECTED")
+    
+    new_root = Path(select_dir)
+    new_root.mkdir(exist_ok=True, parents=True)
+
+    common = Path(os.path.commonpath(paths))
+    for p in paths:
+        rel_path = p.relative_to(common)
+        
+        # new destination path
+        dest = new_root / rel_path
+        
+        # make parent folders if they don't exist
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        
+        # create symlink (skip if exists)
+        if not dest.exists():
+            dest.symlink_to(p)
+    return select_dir
+
 def SelectDataSet(start_t, end_t, folder) -> dict:
     changes = {}
     start_t = PrepareTime(start_t)
     end_t = PrepareTime(end_t)
+    # Read all files in folder. Return dict {path:[t_first, t_last], ... }
     files = ReadRootDir(folder)
-    
-    
-    
+    # Select files that has overlaping time interval with requested time. Return list [path1, path2, ... ]
+    requested = Matching(start_t, end_t, files)
+    # Re-root selected files with symlink to new folder 'SELECTED' 
+    new_folder = ReRoot(requested)
+    changes['folder'] = new_folder
+    if CheckStructure(new_folder) == 'dirs':
+            changes['concatenation'] = True
     return changes 

@@ -26,6 +26,20 @@ MODEL_DICT = {'OceanDrift':OceanDrift,
               'ShipDrift':ShipDrift,
               'OpenOil': OpenOil}
 
+def ResolvePath(directory):
+    output_dir = os.getenv(directory)
+
+    if output_dir is None:
+        if os.getenv("CI"):  
+            output_dir = directory  
+        elif os.path.exists("/"+directory):  
+            output_dir = "/"+directory
+        else:
+            output_dir = directory
+            
+    os.makedirs(output_dir, exist_ok=True)
+    return output_dir
+
 def get_time_from_reader(agg, lst, time_type = None):
     types = ['start', 'end']
     if time_type in types:
@@ -249,7 +263,7 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
 
     return result 
 
-def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_type, orientation, oil_type, shpfile=None):
+def Seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_type, orientation, oil_type, shpfile=None):
     params = dict(
         lat = start_position[0],
         lon = start_position[1],
@@ -282,7 +296,7 @@ def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_ty
     return o
 
 def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
-               end_t=None, datasets=None, std_names=None, num=100,
+               end_t=None, datasets=None, std_names=None, num=100, selection = None,
                rad=0, ship=[62, 8, 10, 5], wdf=0.02, orientation = 'random',
                delay=False, multi_rad=False, seed_type=None, time_step = None, vocabulary = None,
                configurations = None, file_name = None, oil_type='GENERIC BUNKER C', shpfile=None):
@@ -325,17 +339,8 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
         file_name = f'{m}_{t_strt}_{t_now}.nc'
     
     # Make correct OUTPUT dir (abs/rel path) depending on where the code is running
-    output_dir = os.getenv("OUTPUT")
-
-    if output_dir is None:
-        if os.getenv("CI"):  
-            output_dir = "OUTPUT"  
-        elif os.path.exists("/OUTPUT"):  
-            output_dir = "/OUTPUT"
-        else:
-            output_dir = "OUTPUT"
-            
-    os.makedirs(output_dir, exist_ok=True)    
+    output_dir = ResolvePath("OUTPUT")
+      
     file_name = os.path.join(output_dir, file_name)
     # Create a model and add readers
     o = model(loglevel = 50)
@@ -345,7 +350,7 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
     o.add_reader(reader)
     # Seed
 
-    o = seed(o=o, model=model, lw_obj=lw_obj, num = num, rad = rad, start_t = start_t, 
+    o = Seed(o=o, model=model, lw_obj=lw_obj, num = num, rad = rad, start_t = start_t, 
              start_position=start_position, ship=ship, wdf = wdf, seed_type=seed_type,
              orientation=orientation, oil_type=oil_type, shpfile=shpfile)
     # Run

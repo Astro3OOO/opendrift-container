@@ -69,6 +69,7 @@ def main() -> int:
             logging.exception(f'Dataset selection failed: {e}')
             return 10
         logging.info(f'Data is selected. Reading...')
+        
     try:
         ds = PrepareDataSet(**data_vars)
     except Exception as e:
