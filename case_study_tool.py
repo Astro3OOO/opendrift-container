@@ -126,8 +126,7 @@ def OpenAndAppend(fp=None, file=None, wind_bool = False, ecmwf = [],
         logging.error(f'Given file {file} is not valid. provide a single file.')
     return wind_bool, ecmwf, wind, netcdf 
 
-def ReadFolder(path_to):
-    wind_bool = False
+def ReadFolder(path_to, wind_bool=False):
     ecmwf = []
     wind = []
     netcdf = []
@@ -160,7 +159,7 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
             for subdir in os.listdir(folder):
                 full_path = os.path.join(folder, subdir)
                 if os.path.isdir(full_path):
-                    buffer_ecmwf, buffer_netcdf, buffer_wind, wind = ReadFolder(full_path)
+                    buffer_ecmwf, buffer_netcdf, buffer_wind, wind = ReadFolder(full_path, wind)
 
                     buffers = {'ecmwf': buffer_ecmwf, 'netcdf': buffer_netcdf, 'wind': buffer_wind}
                     targets = {'ecmwf': ds_ecmwf, 'netcdf': ds_netcdf, 'wind': ds_wind}
@@ -177,10 +176,7 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
 
         
         else:
-            ds_ecmwf, ds_netcdf, ds_wind, wind = ReadFolder(folder)
-
-    # else:
-    #     logging.error('Add folder with ECMWF datasets.')
+            ds_ecmwf, ds_netcdf, ds_wind, wind = ReadFolder(folder, wind)
             
     if copernicus:
         if user is None or pword is None:

@@ -76,6 +76,7 @@ def ReturnTimeInterval(file) -> dict:
         logging.error(f'{file} is not a single file. Check the folder structure!') 
     return interval
 
+# Based on folder structure, reads all files (lazy)
 def ReadRootDir(root) -> dict:
     pth = Path(root)
     result = {}
@@ -93,6 +94,7 @@ def ReadRootDir(root) -> dict:
         logging.error('Mixed structure files + dirs is unsupported.')    
     return result
 
+# Function select files that intersect requiered time interval 
 def Matching(start_t, end_t, all_paths) -> list:    
     matching_paths= []
     start_t = PrepareTime(start_t)
@@ -113,6 +115,7 @@ def Matching(start_t, end_t, all_paths) -> list:
             matching_paths.append(path) 
     return matching_paths
 
+# Switch the root dir to /SELECTED and symlink files to it
 def ReRoot(paths):
     select_dir = ResolvePath("SELECTED")
     
@@ -121,6 +124,10 @@ def ReRoot(paths):
 
     common = Path(os.path.commonpath(paths))
     for p in paths:
+        '''
+            Make a valid structure based on data amount and structure
+        '''
+        
         rel_path = p.relative_to(common)
         
         # new destination path
@@ -134,6 +141,8 @@ def ReRoot(paths):
             dest.symlink_to(p)
     return select_dir
 
+# Select files from folder that intersect given time and restructure dataset directory
+# Function reads time metadata of all files, selects matching, makes new directory and symlink files to it  
 def SelectDataSet(start_t, end_t, folder) -> dict:
     changes = {}
     start_t = PrepareTime(start_t)
