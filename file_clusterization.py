@@ -1,5 +1,6 @@
 from pathlib import Path
 
+#File name normalization. Split into words. 
 def SplitName(pth:str) -> list:
     pth = Path(pth)
     res = []
@@ -16,6 +17,7 @@ def SplitName(pth:str) -> list:
             res.append(txt)
     return res
 
+# Accept only unique sequences
 def Cut(tokens:list) -> list:
     groups = []
     for token in tokens:
@@ -23,6 +25,7 @@ def Cut(tokens:list) -> list:
             groups.append(token)
     return groups
 
+# For each sequence select reprezentative word (one element)
 def ReprWords(groups:list) -> list:
     group_sets = [set(g) for g in groups]
 
