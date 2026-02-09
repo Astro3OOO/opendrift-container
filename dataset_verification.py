@@ -1,4 +1,5 @@
 from case_study_tool import PrepareTime, ResolvePath
+from file_clusterization import ClusterFiles
 import logging
 import os
 from pathlib import Path
@@ -123,17 +124,16 @@ def ReRoot(paths):
     new_root.mkdir(exist_ok=True, parents=True)
 
     common = Path(os.path.commonpath(paths))
+
+    if any([file.parent.relative_to(common) == Path('') for file in paths]):
+        rel_paths = ClusterFiles(paths)
+    else:
+        rel_paths = [p.relative_to(common) for p in paths]
+
+    destinations = {file.name : new_root / file for file in rel_paths}
+    
     for p in paths:
-        '''
-            Make a valid structure based on data amount and structure
-        '''
-        
-        rel_path = p.relative_to(common)
-        
-        # new destination path
-        dest = new_root / rel_path
-        
-        # make parent folders if they don't exist
+        dest = destinations[p.name]
         dest.parent.mkdir(parents=True, exist_ok=True)
         
         # create symlink (skip if exists)
