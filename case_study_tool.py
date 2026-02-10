@@ -128,9 +128,9 @@ def OpenAndAppend(fp=None, file=None, wind_bool = False, ecmwf = [],
             with xr.open_dataset(full_path, engine='cfgrib') as ds:
                 ds = ds.assign_coords(time=ds['time'] + ds['step'])
                 ds = ds.swap_dims({'step': 'time'})
-                ds = CutDataset(ds)
+                ds = CutDataset(ds, start_t, end_t)
                 if ds.sizes.get("time", 1) > 0 and len(ds.data_vars) > 0:
-                    ecmwf.append(ds)
+                    ecmwf.append(ds, start_t, end_t)
                 if 'u10' in ds.data_vars:
                     wind.append(xr.Dataset({'u10' : ds['u10'],
                                         'v10': ds['v10']}))
