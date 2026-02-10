@@ -130,7 +130,7 @@ def OpenAndAppend(fp=None, file=None, wind_bool = False, ecmwf = [],
                 ds = ds.swap_dims({'step': 'time'})
                 ds = CutDataset(ds, start_t, end_t)
                 if ds.sizes.get("time", 1) > 0 and len(ds.data_vars) > 0:
-                    ecmwf.append(ds, start_t, end_t)
+                    ecmwf.append(ds)
                 if 'u10' in ds.data_vars:
                     wind.append(xr.Dataset({'u10' : ds['u10'],
                                         'v10': ds['v10']}))
@@ -139,7 +139,7 @@ def OpenAndAppend(fp=None, file=None, wind_bool = False, ecmwf = [],
             logging.info(f'Readed GRIB file {full_path}')
         elif file.endswith('.nc'):
             with xr.open_dataset(full_path, engine='netcdf4') as ds:   
-                ds = CutDataset(ds)
+                ds = CutDataset(ds, start_t, end_t)
                 if ds.sizes.get("time", 1) > 0 and len(ds.data_vars) > 0:
                     netcdf.append(ds)
 
