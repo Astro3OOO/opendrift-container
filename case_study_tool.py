@@ -25,6 +25,9 @@ MODEL_DICT = {'OceanDrift':OceanDrift,
               'Leeway':Leeway,
               'ShipDrift':ShipDrift,
               'OpenOil': OpenOil}
+REQ_VARS_WAVE = ['VTM02', 'VHM0_WW', 'VHM0', 'VTM01_SW1', 'VMDR_SW1',
+                 'VTPK', 'VSDX', 'VMDR_WW', 'VSDY', 'VHM0_SW1', 'VTM01_WW']
+REQ_VARS_PHYS = ['uo', 'thetao', 'so', 'mlotst', 'siconc', 'sla', 'vo']
 
 def ResolvePath(directory):
     output_dir = os.getenv(directory)
@@ -87,9 +90,26 @@ def PrepareTime(time, reader = None, time_type = None):
     else:
         logging.error(f'Incorrect end time input {time}. Returning placeholder')
         return placeholder[time_type]
-
+    
+def CutDataset(dataset, t0, t1):
+    
+    # drop vars
+    for vars in [REQ_VARS_PHYS, REQ_VARS_WAVE]:
+        if all(r in dataset.data_vars for r in vars):
+            dataset = dataset[vars]
+    
+    # select time range   
+    if t0 != None and t1 != None:     
+        dataset = dataset.sel(time = slice(t0,t1))
+    
+    # select depth (sea-level) 
+    if 'depth' in dataset._dims.key():
+        dataset = dataset.sel(depth = dataset.depth[0])
+    
+    return dataset
+ 
 def OpenAndAppend(fp=None, file=None, wind_bool = False, ecmwf = [],
-                  wind = [], netcdf = []):
+                  wind = [], netcdf = [], start_t=None, end_t=None):
     '''
     File can be given as: 1) file = path/to/file.format 2) fp = path/to/file.format 3) file = file.format; fp = path/to/
     '''
@@ -105,20 +125,24 @@ def OpenAndAppend(fp=None, file=None, wind_bool = False, ecmwf = [],
     
     if os.path.isfile(full_path):
         if file.endswith('.grib'):
-            ds = xr.open_dataset(full_path, engine='cfgrib')
-            ds = ds.assign_coords(time=ds['time'] + ds['step'])
-            ds = ds.swap_dims({'step': 'time'})
-            ecmwf.append(ds)
-            if 'u10' in ds.data_vars:
-                wind.append(xr.Dataset({'u10' : ds['u10'],
-                                    'v10': ds['v10']}))
-                wind_bool = True
-            ds.close()
+            with xr.open_dataset(full_path, engine='cfgrib') as ds:
+                ds = ds.assign_coords(time=ds['time'] + ds['step'])
+                ds = ds.swap_dims({'step': 'time'})
+                ds = CutDataset(ds)
+                if ds.sizes.get("time", 1) > 0 and len(ds.data_vars) > 0:
+                    ecmwf.append(ds)
+                if 'u10' in ds.data_vars:
+                    wind.append(xr.Dataset({'u10' : ds['u10'],
+                                        'v10': ds['v10']}))
+                    wind_bool = True
+ 
             logging.info(f'Readed GRIB file {full_path}')
         elif file.endswith('.nc'):
-            ds = xr.open_dataset(full_path, engine='netcdf4')    
-            netcdf.append(ds)
-            ds.close()
+            with xr.open_dataset(full_path, engine='netcdf4') as ds:   
+                ds = CutDataset(ds)
+                if ds.sizes.get("time", 1) > 0 and len(ds.data_vars) > 0:
+                    netcdf.append(ds)
+
             logging.info(f'Readed NetCDF file {full_path}')
         else:
             logging.warning(f'Unknow file type {file}. Only .grib and .nc are currently supported.')
@@ -126,15 +150,15 @@ def OpenAndAppend(fp=None, file=None, wind_bool = False, ecmwf = [],
         logging.error(f'Given file {file} is not valid. provide a single file.')
     return wind_bool, ecmwf, wind, netcdf 
 
-def ReadFolder(path_to, wind_bool=False):
+def ReadFolder(path_to, wind_bool=False, start_t=None, end_t=None):
     ecmwf = []
     wind = []
     netcdf = []
     if os.path.isdir(path_to):
         for file in os.listdir(path_to):
-            wind_bool, ecmwf, wind, netcdf = OpenAndAppend(path_to, file, wind_bool, ecmwf, wind, netcdf)
+            wind_bool, ecmwf, wind, netcdf = OpenAndAppend(path_to, file, wind_bool, ecmwf, wind, netcdf, start_t, end_t)
     elif os.path.isfile(path_to):
-        wind_bool, ecmwf, wind, netcdf = OpenAndAppend(path_to, None, wind_bool, ecmwf, wind, netcdf)
+        wind_bool, ecmwf, wind, netcdf = OpenAndAppend(path_to, None, wind_bool, ecmwf, wind, netcdf, start_t, end_t)
     else:
         logging.error(f'Given path {path_to} is not valid. provide a single file or path to folder.')
     return ecmwf, netcdf, wind, wind_bool
@@ -159,7 +183,7 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
             for subdir in os.listdir(folder):
                 full_path = os.path.join(folder, subdir)
                 if os.path.isdir(full_path):
-                    buffer_ecmwf, buffer_netcdf, buffer_wind, wind = ReadFolder(full_path, wind)
+                    buffer_ecmwf, buffer_netcdf, buffer_wind, wind = ReadFolder(full_path, wind, start_t, end_t)
 
                     buffers = {'ecmwf': buffer_ecmwf, 'netcdf': buffer_netcdf, 'wind': buffer_wind}
                     targets = {'ecmwf': ds_ecmwf, 'netcdf': ds_netcdf, 'wind': ds_wind}
@@ -176,7 +200,7 @@ def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
 
         
         else:
-            ds_ecmwf, ds_netcdf, ds_wind, wind = ReadFolder(folder, wind)
+            ds_ecmwf, ds_netcdf, ds_wind, wind = ReadFolder(folder, wind, start_t, end_t)
             
     if copernicus:
         if user is None or pword is None:
