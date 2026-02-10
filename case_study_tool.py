@@ -103,7 +103,7 @@ def CutDataset(dataset, t0, t1):
         dataset = dataset.sel(time = slice(t0,t1))
     
     # select depth (sea-level) 
-    if 'depth' in dataset._dims.key():
+    if 'depth' in dataset._dims.keys():
         dataset = dataset.sel(depth = dataset.depth[0])
     
     return dataset
