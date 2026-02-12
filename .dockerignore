@@ -12,3 +12,4 @@ __pycache__/
 output/
 .pytest_cache/
 tests/__pycache__/
+test_files/
