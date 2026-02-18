@@ -31,8 +31,7 @@ def test_simulation():
         "rad": 0,
         "wdf": 0.03,
         "time_step": 1800,
-        "file_name": "test_output.nc",
-        "vocabulary": "Copernicus",
+        "file_name": "test_output.nc"
     }
     o = simulation(datasets=[], **sim_vars)    
     assert o is not None
