@@ -74,3 +74,6 @@ Visām apakšminētām configirācijas atribūtām jābūt apkopotiem viena vien
 - **PAPILDUS**
 	- *configurations* - var pievienot papildus simulācijas konfigurācijas no [saraksta](https://lvgmc.sharepoint.com/:x:/s/KSMN/IQCL8Fl45boXSbFMqqSm7mWGAXYaslD0hSFFY1kOkYhtdfU?e=grtsTH). [`dict`]
 	- *file_name* - var pievienot *output* faila nosaukumu. Ja nav noradīts, tad tas tiek ģenerēts automātiski: '{model}_{start_time}_{now_time}.nc'. [`str`]
+	- *prerun* - var ieslēgt sākuma simulāciju ar konstantun vēju un straumi. Šī opcija papildus prasa parametrus *duration* un *forcings*. Šī funkcionalitāte ir paredzēta manuālai novērojumu ievadei faktiskajos laikapstākļos. Pēc īslaicīgas simulācijas beigām, tas beigu stāvoklis (laiks un pozīcija) tiks padots ka sākuma stavoklis pilnvertīgai simulācijai kas turpināsises līdz *end_t*. [`bool`] 
+		- *duration* - simulācijas ilgums teksta formā, piemēram: `1hour 23minutes 54seconds` vai `01:23:54`. [`str`]
+		- *forcings* - [windir, windspeed, currentdir, currentspeed] - saraksts ar 4 skaitļiem, kas reprezentē faktiskus laikapstākļus novērojumu vietā. [`list`]

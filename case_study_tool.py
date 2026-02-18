@@ -6,6 +6,7 @@ from opendrift.models.openoil import OpenOil
 import datetime as dt
 import zoneinfo
 import pandas as pd
+import numpy as np
 import os
 import copernicusmarine
 from opendrift.readers.reader_netCDF_CF_generic import Reader
@@ -69,7 +70,7 @@ def get_time_from_reader(agg, lst, time_type = None):
         logging.warning(f'Time type {time_type} is unsupported')
         return
 
-def PrepareTime(time, reader = None, time_type = None):
+def PrepareTime(time, reader = None, time_type = 'start'):
     placeholder = {'start':dt.datetime.now(),
                    'end':dt.datetime.now() + dt.timedelta(days = 2)}
     if isinstance(time, dt.datetime):
@@ -288,7 +289,7 @@ def Seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_ty
         lat = start_position[0],
         lon = start_position[1],
         number = num,
-        radius=rad,
+        radius = rad,
         time = start_t
     )
             
@@ -315,10 +316,69 @@ def Seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_ty
             logging.error('Unsupported seed type')
     return o
 
+def TransformForcings(configurations, windir=0, windspeed=0, currentdir=0, currentspeed=0):
+    
+    x_wind = windspeed * np.sin(np.deg2rad(windir))
+    y_wind = windspeed * np.cos(np.deg2rad(windir))
+    x_sea = currentspeed * np.sin(np.deg2rad(currentdir))
+    y_sea = currentspeed * np.cos(np.deg2rad(currentdir))
+    
+    configurations.update({
+                            'environment:fallback:x_sea_water_velocity': x_sea,
+                            'environment:fallback:y_sea_water_velocity': y_sea,
+                            'environment:fallback:x_wind': x_wind,
+                            'environment:fallback:y_wind': y_wind
+                        })
+    
+    return configurations
+
+def UpdateStart(o):
+    if o.result != None:
+        res = o.result.sel(time = o.result.time[-1])
+        
+        start_position = [res.lat.values, res.lon.values]
+        start_t = PrepareTime(str(res.time.values))
+    
+        return start_position, start_t
+    else:
+        logging.error('No result of prerun were provided. Fallback to original values.')
+        return None, None
+
+def RunSim(model, configurations, start_position, start_t, end_t, num, rad, 
+           seed_type, ship, wdf, orientation, oil_type, lw_obj, shpfile, 
+           duration = None, reader = [], file_name = None):
+    
+    o = model(loglevel = 50)
+        
+    if configurations is not None:
+        for key, value in configurations.items():
+            o.set_config(key, value)
+            
+    o.add_reader(reader)        
+    
+    o = Seed(o=o, model=model, lw_obj=lw_obj, num = num, rad = rad, start_t = start_t, 
+            start_position=start_position, ship=ship, wdf = wdf, seed_type=seed_type,
+            orientation=orientation, oil_type=oil_type, shpfile=shpfile)
+    
+    # duration OR end_time is given
+    if duration is None and end_t is not None:
+        duration = end_t - start_t
+    
+    # as minimal as possible if simulation is short 
+    if duration < pd.Timedelta(seconds = time_step):
+            time_step = 60
+            
+    if duration:        
+        o.run(duration = duration, time_step=time_step, time_step_output=time_step, outfile = file_name) 
+    else:
+        logging.error(f'Unable to run simulation with duration: {duration}')
+    
+    return o    
+
 def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
-               end_t=None, datasets=None, std_names=None, num=100, selection = None,
-               rad=0, ship=[62, 8, 10, 5], wdf=0.02, orientation = 'random',
-               delay=False, multi_rad=False, seed_type=None, time_step = None, vocabulary = None,
+               end_t=None, datasets=None, std_names=None, num=100, prerun = False,
+               rad=0, ship=[62, 8, 10, 5], wdf=0.02, orientation = 'random', forcings = [0,0,0,0],
+               seed_type=None, time_step = 3600, duration = None,
                configurations = None, file_name = None, oil_type='GENERIC BUNKER C', shpfile=None):
     
     # Check main requirments
@@ -330,12 +390,7 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
         return
     if seed_type == None:
         seed_type = 'elements'
-        
-    # if seed_type == 'shapefile':
-    #     if shpfile == None:
-    #         logging.error('Seed type is selected as seeding from shape, but no shape file was provided')
-    #         return    
-        
+         
     if model not in MODEL_DICT.keys():
         logging.error(f'Model {model} is not supported. Choose one of the following: {list(MODEL_DICT.keys())}')
         return
@@ -363,20 +418,36 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
       
     file_name = os.path.join(output_dir, file_name)
     # Create a model and add readers
-    o = model(loglevel = 50)
-    if configurations is not None:
-        for key, value in configurations.items():
-            o.set_config(key, value)
-    o.add_reader(reader)
-    # Seed
-
-    o = Seed(o=o, model=model, lw_obj=lw_obj, num = num, rad = rad, start_t = start_t, 
-             start_position=start_position, ship=ship, wdf = wdf, seed_type=seed_type,
-             orientation=orientation, oil_type=oil_type, shpfile=shpfile)
-    # Run
-    if time_step is None:
-        o.run(end_time=end_t, outfile = file_name)
-    else:
-        o.run(end_time=end_t, time_step=time_step, time_step_output=time_step, outfile = file_name)
+    
+    constant_params = dict(
+        model=model,
+        seed_type=seed_type,
+        ship=ship, 
+        wdf=wdf, 
+        lw_obj=lw_obj,
+        orientation=orientation, 
+        oil_type=oil_type,
+        shpfile=shpfile,
+        time_step=time_step,
+        num=num,
+        rad=rad
+    )
+    
+    if prerun:
+        cfgs = TransformForcings(configurations,
+                                 windir = forcings[0], 
+                                 windspeed = forcings[1],
+                                 currentdir = forcings[2],
+                                 currentspeed = forcings[3])
+        cfgs.update(configurations)
+        o = RunSim(configurations=cfgs, start_position=start_position,
+                   start_t=start_t, duration=duration, **constant_params)    
+        res = UpdateStart(o)
+        if all(r != None for r in res):
+            start_position, start_t = res
             
+
+    o = RunSim(configurations=configurations, start_position=start_position,
+               start_t=start_t, end_t=end_t, reader=reader, file_name=file_name, 
+               **constant_params)  
     return o

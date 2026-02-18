@@ -12,7 +12,8 @@ logging.basicConfig(
 SIMULATION_KEYS = ['lw_obj', 'model', 'start_position', 'start_t', 'end_t',
                   'num', 'rad', 'ship', 'wdf', 'orientation', 'seed_type',
                   'time_step', 'configurations', 'file_name', 'vocabulary',
-                  'backtracking', 'shpfile', 'oil_type', 'selection']
+                  'backtracking', 'shpfile', 'oil_type', 'selection',
+                  'duration', 'prerun', 'forcings']
 DATASET_KEYS = ['start_t', 'end_t', 'border', 'folder', 'concatenation',  'copernicus', 'user', 'pword']
 REQUIRED_KEYS = ['model','start_position', 'start_t', 'end_t']
 VOC = ["Copernicus", "ECMWF", "Copernicus_edited"]
@@ -144,15 +145,6 @@ def check_seed_settings(flag, file, sim_vars):
         else:
             logging.error(f"Incorrect rad={rad} for seed_type=cone. Using rad=0.")
             sim_vars["rad"] = 0
-    # elif st == "shapefile":
-    #     sim_vars["seed_type"] = "shapefile"
-    #     if isinstance(rad, int):
-    #         sim_vars["rad"] = rad
-    #     elif isinstance(rad, list) and len(rad) == coords:
-    #         sim_vars["rad"] = rad
-    #     else:
-    #         logging.error(f"Incorrect rad={rad} for seed_type=elements. Using rad=0.")
-    #         sim_vars["rad"] = 0   
     else:
         logging.warning(
             f"Incorrect seed_type: {st}. Using default seed_type=elements."
@@ -199,6 +191,13 @@ def check_time_settings(flag, file, sim_vars, data_vars):
             logging.error(f"Start time: {start} must be earlier than end time: {end}.")   
     else:
         logging.warning(f"Invalid or missing time_step: {time_step}. Must be a positive integer.")
+        
+    dur = file.get('duration')
+    try:
+        sim_vars['duration'] = pd.to_timedelta(dur)
+    except Exception as e:
+        logging.warning(f"Ivalid or missing duration: {dur}. Raised exception : {e}")
+        
         
     if flag:
         logging.info("Time settings verified, success!")
@@ -306,6 +305,33 @@ def check_data_settings(file, data_vars):
     logging.info("Data settings verified, success!")
     return data_vars
 
+def check_logic_vars(flag, sim_vars, file):
+    if not flag:
+        return flag, sim_vars
+    
+    rules = {
+        "selection": {
+            "valid": lambda v: isinstance(v, bool),
+            "error": "Invalid or missing selection flag: {}. Must be True or False. Using default: False",
+        },
+        "prerun": {
+            "valid": lambda v: isinstance(v, bool) ,
+            "error": "Invalid or missing prerun flag: {}. Must be True or False. Using default: False",
+        }
+    }
+    for key, rule in rules.items():
+        val = file.get(key, False)
+        if val is not None and rule["valid"](val):
+            sim_vars[key] = val
+        else:
+            logging.warning(rule["error"].format(val))
+            
+    if sim_vars.get('prerun'):
+        if not sim_vars.get('duration') or not sim_vars.pop('forcing_flag'):
+            logging.error(f"Incorrect configuration. Prerun flag was enabled but no forcing or duration was given. Check duration and forcings or disable prerun.")
+            flag = False
+                        
+    return flag, sim_vars
 
 def verify_config_file(file_path):
     sim_vars = dict()
@@ -357,9 +383,24 @@ def verify_config_file(file_path):
             else:
                 logging.error(f"Unknown variable mapping vocabulary: {vc}")
                 flag = False
+                
+        forcings = config.get('forcings')
         
-        sel = config.get('selection', False)
-        sim_vars['selection'] = sel
+        if isinstance(forcings, list) and len(forcings) == 4:
+            sim_vars['forcing_flag'] = False
+            try:
+                np.asarray(forcings, dtype=float)
+                sim_vars['forcings'] = forcings
+                sim_vars['forcing_flag'] = True
+            except Exception:
+                logging.error(f"start_position contains non-numeric values: {forcings}")
+                sim_vars['forcings'] = [0,0,0,0]
+            
+        flag, sim_vars = check_logic_vars(flag, sim_vars, config)
+        
+        '''
+            TODO: Add forcing verification (list of 4 numebrs)
+        '''
         
     else:
         logging.error('Missing required keys in the configuration file.')
@@ -367,9 +408,10 @@ def verify_config_file(file_path):
     residuals = unknown_keys(config, SIMULATION_KEYS, DATASET_KEYS)    
     if len(residuals)>0:
         logging.warning(f"Unknown keys in configuration file: {residuals}")
-        
-    logging.info("Configuration verification completed.")    
-    logging.info(f"Configurations used for data preparation: \n {json.dumps(data_vars, indent=2)}")
-    logging.info(f"Configurations used for simulation: \n {json.dumps(sim_vars, indent=2)}")
-
+    if flag:    
+        logging.info("Configuration verification completed.")    
+        logging.info(f"Configurations used for data preparation: \n {json.dumps(data_vars, indent=2)}")
+        sim_vars_copy = sim_vars.copy()
+        sim_vars_copy['duration'] = str(sim_vars_copy.get('duration',None))
+        logging.info(f"Configurations used for simulation: \n {json.dumps(sim_vars_copy, indent=2)}")
     return flag, sim_vars, data_vars

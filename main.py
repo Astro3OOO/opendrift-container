@@ -58,7 +58,7 @@ def main() -> int:
     Will edit data_vars['folder'] from mounted /DATSETS to symlinked /SELECTED
     '''
     
-    select = sim_vars.get('selection')
+    select = sim_vars.pop('selection')
     start_t = sim_vars.get('start_t')
     end_t = sim_vars.get('end_t')
     if select:
@@ -78,7 +78,7 @@ def main() -> int:
 
     logging.info("Dataset ready. Running simulation...")
 
-    vc = sim_vars.get("vocabulary")
+    vc = sim_vars.pop("vocabulary")
     if vc not in vocabulary_data:
         logging.error(f"Requested vocabulary '{vc}' not found.")
         return 7
