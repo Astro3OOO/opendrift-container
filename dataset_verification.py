@@ -30,6 +30,9 @@ def CheckStartEnd(ds, start, end) -> bool:
         return False
 
 def DatasetTimeValid(dataset, start_t, end_t) -> bool:
+    if dataset == [] or dataset is None:
+        logging.error('Dataset is empty or None, cannot run simulation!')
+        return False
     start_t = PrepareTime(start_t)
     end_t = PrepareTime(end_t)
     if type(dataset) == list:
