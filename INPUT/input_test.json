@@ -14,5 +14,6 @@
     "file_name": "test_output.nc",
     "vocabulary": "Copernicus",
     "user":"",
-    "pword":""
+    "pword":"",
+    "allow_empty_ds":true
 }

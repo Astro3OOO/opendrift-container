@@ -1,6 +1,6 @@
 from config_verification import verify_config_file
 from case_study_tool import simulation, PrepareDataSet
-from dataset_verification import DatasetTimeValid, SelectDataSet
+from dataset_verification import DatasetValid, SelectDataSet
 import sys
 import json 
 import logging
@@ -83,7 +83,8 @@ def main() -> int:
         logging.error(f"Requested vocabulary '{vc}' not found.")
         return 7
     
-    if not DatasetTimeValid(ds, start_t, end_t):
+    empty = sim_vars.pop('allow_empty_ds')
+    if not DatasetValid(ds, start_t, end_t, empty):
         logging.error('Dataset time validation failed. ')
         return 8
 

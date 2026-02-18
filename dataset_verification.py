@@ -29,8 +29,8 @@ def CheckStartEnd(ds, start, end) -> bool:
         logging.error("Dataset doesn't have valid time dimension")
         return False
 
-def DatasetTimeValid(dataset, start_t, end_t) -> bool:
-    if dataset == [] or dataset is None:
+def DatasetValid(dataset, start_t, end_t, allow_empty_ds = False) -> bool:
+    if (dataset == [] or dataset is None) and not allow_empty_ds:
         logging.error('Dataset is empty or None, cannot run simulation!')
         return False
     start_t = PrepareTime(start_t)

@@ -77,3 +77,4 @@ Visām apakšminētām configirācijas atribūtām jābūt apkopotiem viena vien
 	- *prerun* - var ieslēgt sākuma simulāciju ar konstantun vēju un straumi. Šī opcija papildus prasa parametrus *duration* un *forcings*. Šī funkcionalitāte ir paredzēta manuālai novērojumu ievadei faktiskajos laikapstākļos. Pēc īslaicīgas simulācijas beigām, tas beigu stāvoklis (laiks un pozīcija) tiks padots ka sākuma stavoklis pilnvertīgai simulācijai kas turpināsises līdz *end_t*. [`bool`] 
 		- *duration* - simulācijas ilgums teksta formā, piemēram: `1hour 23minutes 54seconds` vai `01:23:54`. [`str`]
 		- *forcings* - [windir, windspeed, currentdir, currentspeed] - saraksts ar 4 skaitļiem, kas reprezentē faktiskus laikapstākļus novērojumu vietā. [`list`]
+	- *allow_empty_ds* - DEBUGGING variable. Netiek lietots simulācijās, ir domats konteinera testiem kad netiek nodoti dati. Pēc noklusējuma ir `False`, tāde veidā aizliedzot palaist simulaciju bez datiem. [`bool`]

@@ -320,6 +320,10 @@ def check_logic_vars(flag, sim_vars, file):
         "prerun": {
             "valid": lambda v: isinstance(v, bool) ,
             "error": "Invalid or missing prerun flag: {}. Must be True or False. Using default: False",
+        },
+        'allow_empty_ds': {
+            "valid": lambda v: isinstance(v, bool) ,
+            "error": "Invalid or missing empty dataset flag: {}. Must be True or False. Using default: False",
         }
     }
     for key, rule in rules.items():
