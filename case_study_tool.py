@@ -12,15 +12,9 @@ import copernicusmarine
 from opendrift.readers.reader_netCDF_CF_generic import Reader
 import logging
 
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format="%(asctime)s [%(levelname)s] %(message)s",
-# )
-logger_od = logging.getLogger('opendrift') 
-logger_od.setLevel(logging.CRITICAL)
 
 logger_cop = logging.getLogger('copernicusmarine') 
-logger_cop.setLevel(logging.WARNING)
+logger_cop.setLevel(logging.INFO)
 
 MODEL_DICT = {'OceanDrift':OceanDrift,
               'Leeway':Leeway,
@@ -329,7 +323,7 @@ def TransformForcings(configurations, windir=0, windspeed=0, currentdir=0, curre
                             'environment:fallback:x_wind': x_wind,
                             'environment:fallback:y_wind': y_wind
                         })
-    
+    logging.info('Forcings transformed: [winddir, windspeed] - > [x_wind, y_wind] \n [currentdir, currentspeed] - > [x_sea_water_velocity, y_sea_water_velocity]')
     return configurations
 
 def UpdateStart(o):
@@ -338,38 +332,44 @@ def UpdateStart(o):
         
         start_position = [res.lat.values, res.lon.values]
         start_t = PrepareTime(str(res.time.values))
-    
+        logging.info('Start conditions updated!')
         return start_position, start_t
     else:
         logging.error('No result of prerun were provided. Fallback to original values.')
         return None, None
 
-def RunSim(model, configurations, start_position, start_t, end_t, num, rad, 
-           seed_type, ship, wdf, orientation, oil_type, lw_obj, shpfile, 
-           duration = None, reader = [], file_name = None):
+def RunSim(model, configurations, start_position, start_t, num, rad, 
+           seed_type, ship, wdf, orientation, oil_type, lw_obj, shpfile, time_step,
+           duration = None, reader = [], file_name = None, end_t=None):
     
-    o = model(loglevel = 50)
+    o = model(loglevel = 20)
         
     if configurations is not None:
         for key, value in configurations.items():
             o.set_config(key, value)
+            logging.info(f'Configuration used: {key} with value = {value}')
             
     o.add_reader(reader)        
+    logging.info(f'Reader used : {reader}')
     
     o = Seed(o=o, model=model, lw_obj=lw_obj, num = num, rad = rad, start_t = start_t, 
             start_position=start_position, ship=ship, wdf = wdf, seed_type=seed_type,
             orientation=orientation, oil_type=oil_type, shpfile=shpfile)
+    logging.info(f'Seeding {model} {num} particles at {start_t} ')
     
     # duration OR end_time is given
     if duration is None and end_t is not None:
         duration = end_t - start_t
+    logging.info(f'Simulation duration {duration}')
     
     # as minimal as possible if simulation is short 
     if duration < pd.Timedelta(seconds = time_step):
             time_step = 60
             
-    if duration:        
+    if duration:  
+        logging.info('Run started.')      
         o.run(duration = duration, time_step=time_step, time_step_output=time_step, outfile = file_name) 
+        logging.info('Run ended.')      
     else:
         logging.error(f'Unable to run simulation with duration: {duration}')
     
@@ -417,6 +417,7 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
     output_dir = ResolvePath("OUTPUT")
       
     file_name = os.path.join(output_dir, file_name)
+    logging.info(f'Filename for final result {file_name}')
     # Create a model and add readers
     
     constant_params = dict(
@@ -434,6 +435,7 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
     )
     
     if prerun:
+        logging.info('Prerun started.')
         cfgs = TransformForcings(configurations,
                                  windir = forcings[0], 
                                  windspeed = forcings[1],
@@ -445,6 +447,9 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
         res = UpdateStart(o)
         if all(r != None for r in res):
             start_position, start_t = res
+            logging.info('Prerun completed, success!')
+        else:
+            logging.warning('Prerun didnot complete successfully, fallback to original values')
             
 
     o = RunSim(configurations=configurations, start_position=start_position,

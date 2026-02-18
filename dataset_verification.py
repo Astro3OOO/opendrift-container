@@ -119,6 +119,8 @@ def Matching(start_t, end_t, all_paths) -> list:
 # Switch the root dir to /SELECTED and symlink files to it
 def ReRoot(paths):
     select_dir = ResolvePath("SELECTED")
+    if paths == []:
+        return select_dir
     
     new_root = Path(select_dir)
     new_root.mkdir(exist_ok=True, parents=True)
@@ -151,6 +153,7 @@ def SelectDataSet(start_t, end_t, folder) -> dict:
     files = ReadRootDir(folder)
     # Select files that has overlaping time interval with requested time. Return list [path1, path2, ... ]
     requested = Matching(start_t, end_t, files)
+    print(requested)
     # Re-root selected files with symlink to new folder 'SELECTED' 
     new_folder = ReRoot(requested)
     changes['folder'] = new_folder

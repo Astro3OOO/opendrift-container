@@ -43,7 +43,7 @@ def check_oceandrift(file, sim_vars):
         sim_vars['wdf'] = val
     elif val is not None and isinstance(val, list) and len(val) == file.get('num'):
         sim_vars['wdf'] = val
-        logging.info(f"Wind drift factor is given as a list: {val}. Number of elements must match length of wdf.")
+        logging.warning(f"Wind drift factor is given as a list: {val}. Number of elements must match length of wdf.")
     else:
         logging.warning(f"Invalid wind drift factor: {val}. Must be float in [0, 1]. Using default value 0.02")
     return sim_vars
@@ -257,7 +257,10 @@ def check_position_settings(flag, file, sim_vars):
     return flag, sim_vars
 
 
-def check_data_settings(file, data_vars):
+def check_data_settings(flag, file, data_vars):
+    if not flag:
+        return data_vars
+    
     rules = {
         "border": {
             "valid": lambda v: verify_border(v),
@@ -302,7 +305,7 @@ def check_data_settings(file, data_vars):
             else:
                 logging.error(rule["error"].format(val))
 
-    logging.info("Data settings verified, success!")
+    logging.info("Data settings verified.")
     return data_vars
 
 def check_logic_vars(flag, sim_vars, file):
@@ -330,6 +333,8 @@ def check_logic_vars(flag, sim_vars, file):
         if not sim_vars.get('duration') or not sim_vars.pop('forcing_flag'):
             logging.error(f"Incorrect configuration. Prerun flag was enabled but no forcing or duration was given. Check duration and forcings or disable prerun.")
             flag = False
+    if flag:
+        logging.info('Logic variables verified, success !')
                         
     return flag, sim_vars
 
@@ -350,57 +355,66 @@ def verify_config_file(file_path):
         flag, sim_vars = check_position_settings(flag, config, sim_vars)
         flag, sim_vars, data_vars = check_time_settings(flag, config, sim_vars, data_vars)
         flag, sim_vars  = check_seed_settings(flag, config, sim_vars)           # if incorrect, fall back to defaults, do not raise an error. Flag just for skipping. 
-        data_vars = check_data_settings(config, data_vars)          # simulation can run with empty [] dataset, that will not raise an error
-        match config['model']:
-            case 'OceanDrift':
-                sim_vars = check_oceandrift(config, sim_vars)
-            case 'Leeway':
-                sim_vars = check_leeway(config, sim_vars)
-            case 'ShipDrift':
-                sim_vars = check_shipdrift(config, sim_vars)
-            case 'OpenOil':
-                sim_vars = check_openoil(config, sim_vars)
-            case _:
-                logging.error(f"Unknown model type: {config['model']}")
-                flag = False
-                
-        name = config.get('file_name')
-        if name is not None:
-            sim_vars['file_name'] = name
-            
-        cnf = config.get('configurations')
-        if cnf is not None:
-            if isinstance(cnf, dict):
-                sim_vars['configurations'] = cnf
-            else:
-                logging.warning(f"Invalid configurations: {cnf}. Must be a dictionary. Skipping configurations.")
-            
-        vc = config.get('vocabulary')
-        if vc is not None:
-            if vc in VOC:
-                sim_vars['vocabulary'] = vc
-                data_vars['vocabulary'] = vc
-            else:
-                logging.error(f"Unknown variable mapping vocabulary: {vc}")
-                flag = False
-                
-        forcings = config.get('forcings')
+        data_vars = check_data_settings(flag, config, data_vars)          # simulation can run with empty [] dataset, that will not raise an error
+        if flag:
+            match config['model']:
+                case 'OceanDrift':
+                    sim_vars = check_oceandrift(config, sim_vars)
+                case 'Leeway':
+                    sim_vars = check_leeway(config, sim_vars)
+                case 'ShipDrift':
+                    sim_vars = check_shipdrift(config, sim_vars)
+                case 'OpenOil':
+                    sim_vars = check_openoil(config, sim_vars)
+                case _:
+                    logging.error(f"Unknown model type: {config['model']}")
+                    flag = False
+            if flag:
+                logging.info('Model settings verified, succes!')
         
-        if isinstance(forcings, list) and len(forcings) == 4:
-            sim_vars['forcing_flag'] = False
-            try:
-                np.asarray(forcings, dtype=float)
-                sim_vars['forcings'] = forcings
-                sim_vars['forcing_flag'] = True
-            except Exception:
-                logging.error(f"start_position contains non-numeric values: {forcings}")
-                sim_vars['forcings'] = [0,0,0,0]
+        if flag:        
+            name = config.get('file_name')
+            if name is not None:
+                sim_vars['file_name'] = name
+                logging.info('File name added.')
+
+                
+            cnf = config.get('configurations')
+            if cnf is not None:
+                if isinstance(cnf, dict):
+                    sim_vars['configurations'] = cnf
+                    logging.info('Configurations added.')
+                else:
+                    logging.warning(f"Invalid configurations: {cnf}. Must be a dictionary. Skipping configurations.")
+                
+            vc = config.get('vocabulary')
+            if vc is not None:
+                if vc in VOC:
+                    sim_vars['vocabulary'] = vc
+                    data_vars['vocabulary'] = vc
+                    logging.info('Vocabulary added.')
+                else:
+                    logging.error(f"Unknown variable mapping vocabulary: {vc}")
+                    flag = False
+                
+            forcings = config.get('forcings')
+            
+            if isinstance(forcings, list) and len(forcings) == 4:
+                sim_vars['forcing_flag'] = False
+                try:
+                    np.asarray(forcings, dtype=float)
+                    if abs(forcings[1]) <=15 and abs(forcings[1]) <=50:
+                        sim_vars['forcings'] = forcings
+                        sim_vars['forcing_flag'] = True
+                        logging.info('Forcings added.')
+                    else:
+                        logging.error(f"Forcing speed exceeded limits: windspeed <= 50m/s, currentspeed <= 15m/s. Given: {forcings}")
+
+                except Exception:
+                    logging.error(f"Forcing contains non-numeric values: {forcings}. Using default values : [0,0,0,0].")
+                    sim_vars['forcings'] = [0,0,0,0]
             
         flag, sim_vars = check_logic_vars(flag, sim_vars, config)
-        
-        '''
-            TODO: Add forcing verification (list of 4 numebrs)
-        '''
         
     else:
         logging.error('Missing required keys in the configuration file.')
