@@ -1,16 +1,14 @@
-import xarray as xr
 from opendrift.models.oceandrift import OceanDrift
 from opendrift.models.leeway import Leeway
 from opendrift.models.shipdrift import ShipDrift
 from opendrift.models.openoil import OpenOil
 import datetime as dt
-import zoneinfo
 import pandas as pd
 import numpy as np
 import os
-import copernicusmarine
 from opendrift.readers.reader_netCDF_CF_generic import Reader
 import logging
+from general_tools import prepare_time, resolve_path
 
 
 logger_cop = logging.getLogger('copernicusmarine') 
@@ -20,265 +18,8 @@ MODEL_DICT = {'OceanDrift':OceanDrift,
               'Leeway':Leeway,
               'ShipDrift':ShipDrift,
               'OpenOil': OpenOil}
-REQ_VARS_WAVE = ['VTM02', 'VHM0_WW', 'VHM0', 'VTM01_SW1', 'VMDR_SW1',
-                 'VTPK', 'VSDX', 'VMDR_WW', 'VSDY', 'VHM0_SW1', 'VTM01_WW']
-REQ_VARS_PHYS = ['uo', 'thetao', 'so', 'mlotst', 'siconc', 'sla', 'vo']
-
-def ResolvePath(directory):
-    output_dir = os.getenv(directory)
-
-    if output_dir is None:
-        if os.getenv("CI"):  
-            output_dir = directory  
-        elif os.path.exists("/"+directory):  
-            output_dir = "/"+directory
-        else:
-            output_dir = directory
-            
-    os.makedirs(output_dir, exist_ok=True)
-    return output_dir
-
-def get_time_from_reader(agg, lst, time_type = None):
-    types = ['start', 'end']
-    if time_type in types:
-        if type(lst) == list:
-            new_lst = []
-            for element in lst:
-                reader_times = {'start':element.start_time,
-                                'end': element.end_time}
-                target = reader_times[time_type]
-                if (type(target) == dt.datetime or 
-                    type(element) == pd._libs.tslibs.timestamps.Timestamp):
-                    new_lst.append(target)
-            if agg == 'Max':
-                return max(new_lst)
-            elif agg == 'Min':
-                return min(new_lst)
-            else:
-                logging.warning(f'Aggregation {agg} is not supported')
-        else:
-            reader_times = {'start':lst.start_time,
-                            'end': lst.end_time}
-            return reader_times[time_type]
-    else:
-        logging.warning(f'Time type {time_type} is unsupported')
-        return
-
-def PrepareTime(time, reader = None, time_type = 'start'):
-    placeholder = {'start':dt.datetime.now(),
-                   'end':dt.datetime.now() + dt.timedelta(days = 2)}
-    if isinstance(time, dt.datetime):
-        return time
-    elif isinstance(time, pd._libs.tslibs.timestamps.Timestamp):
-        return time
-    elif isinstance(time, int) or isinstance(time, str):
-        try:
-            time = pd.to_datetime(time)
-            return time
-        except:
-            logging.warning(f'Unable to transform {time} start time into pandas Timesamp.')
-            time = None
-    elif time is None and reader is not None and (time_type in placeholder.keys()):
-        Aggregations = {'start':'Min',
-                        'end':'Max'}
-        return get_time_from_reader(Aggregations[time_type], reader, time_type)
-    else:
-        logging.error(f'Incorrect end time input {time}. Returning placeholder')
-        return placeholder[time_type]
-    
-def CutDataset(dataset, t0, t1):
-    
-    # drop vars
-    for vars in [REQ_VARS_PHYS, REQ_VARS_WAVE]:
-        if all(r in dataset.data_vars for r in vars):
-            dataset = dataset[vars]
-    
-    # select time range   
-    if t0 != None and t1 != None:     
-        dataset = dataset.sel(time = slice(t0,t1))
-    
-    # select depth (sea-level) 
-    if 'depth' in dataset._dims.keys():
-        dataset = dataset.sel(depth = dataset.depth[0])
-    
-    return dataset
  
-def OpenAndAppend(fp=None, file=None, wind_bool = False, ecmwf = [],
-                  wind = [], netcdf = [], start_t=None, end_t=None):
-    '''
-    File can be given as: 1) file = path/to/file.format 2) fp = path/to/file.format 3) file = file.format; fp = path/to/
-    '''
-    if os.path.exists(fp) and file:
-        full_path = os.path.join(fp,file)
-    elif os.path.exists(fp):
-        full_path = fp
-    elif os.path.exists(file):
-        full_path = file
-    else:
-        logging.error(f'Given file {file} anp path {fp} are invalid. Provide valid paths.')
-        return wind_bool, ecmwf, wind, netcdf 
-    
-    if os.path.isfile(full_path):
-        if file.endswith('.grib'):
-            with xr.open_dataset(full_path, engine='cfgrib') as ds:
-                ds = ds.assign_coords(time=ds['time'] + ds['step'])
-                ds = ds.swap_dims({'step': 'time'})
-                ds = CutDataset(ds, start_t, end_t)
-                if ds.sizes.get("time", 1) > 0 and len(ds.data_vars) > 0:
-                    ecmwf.append(ds)
-                if 'u10' in ds.data_vars:
-                    wind.append(xr.Dataset({'u10' : ds['u10'],
-                                        'v10': ds['v10']}))
-                    wind_bool = True
- 
-            logging.info(f'Readed GRIB file {full_path}')
-        elif file.endswith('.nc'):
-            with xr.open_dataset(full_path, engine='netcdf4') as ds:   
-                ds = CutDataset(ds, start_t, end_t)
-                if ds.sizes.get("time", 1) > 0 and len(ds.data_vars) > 0:
-                    netcdf.append(ds)
-
-            logging.info(f'Readed NetCDF file {full_path}')
-        else:
-            logging.warning(f'Unknow file type {file}. Only .grib and .nc are currently supported.')
-    else:
-        logging.error(f'Given file {file} is not valid. provide a single file.')
-    return wind_bool, ecmwf, wind, netcdf 
-
-def ReadFolder(path_to, wind_bool=False, start_t=None, end_t=None):
-    ecmwf = []
-    wind = []
-    netcdf = []
-    if os.path.isdir(path_to):
-        for file in os.listdir(path_to):
-            wind_bool, ecmwf, wind, netcdf = OpenAndAppend(path_to, file, wind_bool, ecmwf, wind, netcdf, start_t, end_t)
-    elif os.path.isfile(path_to):
-        wind_bool, ecmwf, wind, netcdf = OpenAndAppend(path_to, None, wind_bool, ecmwf, wind, netcdf, start_t, end_t)
-    else:
-        logging.error(f'Given path {path_to} is not valid. provide a single file or path to folder.')
-    return ecmwf, netcdf, wind, wind_bool
-
-def PrepareDataSet(start_t, end_t, border = [54, 62, 13, 30],
-                   folder = None, concatenation =False, copernicus = False,
-                   user = None, pword = None, vocabulary = None):
-    wind = False
-    # Lists of datasets that will be used in Reader.
-    # List may consist of singe datstets (eg atmoshperic model, wind model) 
-    # or combined datasets (atmo combined, wind combined)
-    ds_ecmwf = []
-    ds_netcdf = []
-    ds_copernicus = []
-    ds_wind = []
-    
-    start_t = PrepareTime(start_t)
-    end_t = PrepareTime(end_t)
-    
-    if folder != None:
-        if concatenation:
-            for subdir in os.listdir(folder):
-                full_path = os.path.join(folder, subdir)
-                if os.path.isdir(full_path):
-                    buffer_ecmwf, buffer_netcdf, buffer_wind, wind = ReadFolder(full_path, wind, start_t, end_t)
-
-                    buffers = {'ecmwf': buffer_ecmwf, 'netcdf': buffer_netcdf, 'wind': buffer_wind}
-                    targets = {'ecmwf': ds_ecmwf, 'netcdf': ds_netcdf, 'wind': ds_wind}
-
-                    for key in ['ecmwf','netcdf','wind']:
-                        buf = buffers[key]
-                        if buf:
-                            merged = xr.concat(buf, dim='time')
-                            merged = merged.sortby('time')
-                            merged = merged.drop_duplicates(dim='time')
-                            targets[key].append(merged) 
-                else:
-                    logging.error(f'{full_path} Is not a valid directory.')
-
-        
-        else:
-            ds_ecmwf, ds_netcdf, ds_wind, wind = ReadFolder(folder, wind, start_t, end_t)
-            
-    if copernicus:
-        if user is None or pword is None:
-            logging.error('No login credentials provided.')
-        else:
-            try:
-                ds_1 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_phy_anfc_PT1H-i', chunk_size_limit=0,
-                                                    username=user, password = pword,
-                                                    minimum_latitude=border[0], maximum_latitude=border[1],
-                                                    minimum_longitude=border[2], maximum_longitude=border[3],
-                                                    minimum_depth=0.5016462206840515, maximum_depth=0.5016462206840515,
-                                                    start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
-                                                    end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
-                ds_copernicus.append(ds_1)
-                ds_1.close()
-                
-                ds_2 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_wav_anfc_PT1H-i', chunk_size_limit=0,
-                                                    username = user,  password = pword,
-                                                    minimum_latitude=border[0], maximum_latitude=border[1],
-                                                    minimum_longitude=border[2], maximum_longitude=border[3],
-                                                    start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
-                                                    end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
-                ds_copernicus.append(ds_2)
-                ds_2.close()
-                
-            except:
-                logging.warning('No data found in Copernicus Baltic. Searching in copernicus global...')
-                # ds_copernicus = []
-                try:
-                    ds_1 = copernicusmarine.open_dataset(dataset_id='cmems_mod_glo_phy_anfc_0.083deg_PT1H-m', chunk_size_limit=0,
-                                                        username=user, password = pword, 
-                                                        minimum_latitude=border[0], maximum_latitude=border[1],
-                                                        minimum_longitude=border[2], maximum_longitude=border[3],
-                                                        minimum_depth=0.49402499198913574, maximum_depth=0.49402499198913574,
-                                                        start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
-                                                        end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
-                    ds_copernicus.append(ds_1)
-                    ds_1.close()
-
-                    ds_2 = copernicusmarine.open_dataset(dataset_id='cmems_mod_glo_wav_anfc_0.083deg_PT3H-i', chunk_size_limit=0, 
-                                                        username=user, password = pword,
-                                                        minimum_latitude=border[0], maximum_latitude=border[1],
-                                                        minimum_longitude=border[2], maximum_longitude=border[3],
-                                                        start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
-                                                        end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
-                    ds_copernicus.append(ds_2)
-                    ds_2.close()
-
-                except:
-                    logging.warning('No requested data in Copernicus Global.')
-            ds_3 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_wav_anfc_static', chunk_size_limit=0,
-                                                username = user, password = pword,
-                                                minimum_latitude=border[0], maximum_latitude=border[1],
-                                                minimum_longitude=border[2], maximum_longitude=border[3])
-            ds_copernicus.append(ds_3)
-            ds_3.close()
-                
-    if wind:
-        if len(ds_netcdf)>0:
-            ds_netcdf += ds_wind
-        if len(ds_copernicus)>0:
-            ds_copernicus += ds_wind
-    
-    result = []
-    if vocabulary == 'ECMWF':
-        result += ds_ecmwf
-        logging.info('Returnng ECMWF dataset')
-    elif (vocabulary == 'Copernicus') or (vocabulary == 'Copernicus_edited'):
-        if len(ds_netcdf) > 0:
-            result += ds_netcdf
-            logging.info('Returnng Copernicus NetCDF dataset')
-        if len(ds_copernicus) > 0:
-            result += ds_copernicus
-            logging.info('Returnng Copernicus requested dataset')
-    elif len(ds_netcdf) > 0:
-        result += ds_netcdf
-        logging.info('Returnng unspecified NetCDF dataset')
-    else:
-        logging.error('No dataset to return.')
-
-    return result 
-
-def Seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_type, orientation, oil_type, shpfile=None):
+def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_type, orientation, oil_type, shpfile=None):
     params = dict(
         lat = start_position[0],
         lon = start_position[1],
@@ -310,7 +51,7 @@ def Seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_ty
             logging.error('Unsupported seed type')
     return o
 
-def TransformForcings(configurations, windir=0, windspeed=0, currentdir=0, currentspeed=0):
+def _transform_forcings(configurations, windir=0, windspeed=0, currentdir=0, currentspeed=0):
     
     x_wind = windspeed * np.sin(np.deg2rad(windir))
     y_wind = windspeed * np.cos(np.deg2rad(windir))
@@ -326,19 +67,19 @@ def TransformForcings(configurations, windir=0, windspeed=0, currentdir=0, curre
     logging.info('Forcings transformed: [winddir, windspeed] - > [x_wind, y_wind] \n [currentdir, currentspeed] - > [x_sea_water_velocity, y_sea_water_velocity]')
     return configurations
 
-def UpdateStart(o):
+def update_start(o):
     if o.result != None:
         res = o.result.sel(time = o.result.time[-1])
         
         start_position = [res.lat.values, res.lon.values]
-        start_t = PrepareTime(str(res.time.values))
+        start_t = prepare_time(str(res.time.values))
         logging.info('Start conditions updated!')
         return start_position, start_t
     else:
         logging.error('No result of prerun were provided. Fallback to original values.')
         return None, None
 
-def RunSim(model, configurations, start_position, start_t, num, rad, 
+def run_sim(model, configurations, start_position, start_t, num, rad, 
            seed_type, ship, wdf, orientation, oil_type, lw_obj, shpfile, time_step,
            duration = None, reader = [], file_name = None, end_t=None):
     
@@ -352,7 +93,7 @@ def RunSim(model, configurations, start_position, start_t, num, rad,
     o.add_reader(reader)        
     logging.info(f'Reader used : {reader}')
     
-    o = Seed(o=o, model=model, lw_obj=lw_obj, num = num, rad = rad, start_t = start_t, 
+    o = seed(o=o, model=model, lw_obj=lw_obj, num = num, rad = rad, start_t = start_t, 
             start_position=start_position, ship=ship, wdf = wdf, seed_type=seed_type,
             orientation=orientation, oil_type=oil_type, shpfile=shpfile)
     logging.info(f'Seeding {model} {num} particles at {start_t} ')
@@ -375,27 +116,33 @@ def RunSim(model, configurations, start_position, start_t, num, rad,
     
     return o    
 
+# Check main requirments
+def _check_requirments(start_position, datasets, model):
+    flag = True
+    
+    if start_position == None:
+        logging.error('Start position is required')
+        flag = False
+    if datasets == None:
+        logging.error('At least one dataset is required')
+        flag = False
+    if model not in MODEL_DICT.keys():
+        logging.error(f'Model {model} is not supported. Choose one of the following: {list(MODEL_DICT.keys())}')
+        flag = False
+        
+    return flag
+    
+
 def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
                end_t=None, datasets=None, std_names=None, num=100, prerun = False,
                rad=0, ship=[62, 8, 10, 5], wdf=0.02, orientation = 'random', forcings = [0,0,0,0],
-               seed_type=None, time_step = 3600, duration = None,
+               seed_type='elements', time_step = 3600, duration = None,
                configurations = None, file_name = None, oil_type='GENERIC BUNKER C', shpfile=None):
     
-    # Check main requirments
-    if start_position == None:
-        logging.error('Start position is required')
-        return
-    if datasets == None:
-        logging.error('At least one dataset is required')
-        return
-    if seed_type == None:
-        seed_type = 'elements'
-         
-    if model not in MODEL_DICT.keys():
-        logging.error(f'Model {model} is not supported. Choose one of the following: {list(MODEL_DICT.keys())}')
-        return
+    if not _check_requirments(start_position, datasets, model):
+        raise Exception('Required parametrs missing. ') 
+       
     model = MODEL_DICT[model]   
-    
     
     # Create readers
     if type(datasets) == list:
@@ -404,8 +151,8 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
         reader = Reader(datasets, standard_name_mapping=std_names)
         
     # Prepare start and end times
-    start_t = PrepareTime(start_t, reader, 'start')
-    end_t = PrepareTime(end_t, reader, 'end')
+    start_t = prepare_time(start_t, reader, 'start')
+    end_t = prepare_time(end_t, reader, 'end')
     
     if file_name == None:
         m = str(model).split('.')[-1][:-2]
@@ -414,7 +161,7 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
         file_name = f'{m}_{t_strt}_{t_now}.nc'
     
     # Make correct OUTPUT dir (abs/rel path) depending on where the code is running
-    output_dir = ResolvePath("OUTPUT")
+    output_dir = resolve_path("OUTPUT")
       
     file_name = os.path.join(output_dir, file_name)
     logging.info(f'Filename for final result {file_name}')
@@ -436,15 +183,15 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
     
     if prerun:
         logging.info('Prerun started.')
-        cfgs = TransformForcings(configurations,
+        cfgs = _transform_forcings(configurations,
                                  windir = forcings[0], 
                                  windspeed = forcings[1],
                                  currentdir = forcings[2],
                                  currentspeed = forcings[3])
         cfgs.update(configurations)
-        o = RunSim(configurations=cfgs, start_position=start_position,
+        o = run_sim(configurations=cfgs, start_position=start_position,
                    start_t=start_t, duration=duration, **constant_params)    
-        res = UpdateStart(o)
+        res = update_start(o)
         if all(r != None for r in res):
             start_position, start_t = res
             logging.info('Prerun completed, success!')
@@ -452,7 +199,7 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
             logging.warning('Prerun didnot complete successfully, fallback to original values')
             
 
-    o = RunSim(configurations=configurations, start_position=start_position,
+    o = run_sim(configurations=configurations, start_position=start_position,
                start_t=start_t, end_t=end_t, reader=reader, file_name=file_name, 
                **constant_params)  
-    return o
+    return o, file_name

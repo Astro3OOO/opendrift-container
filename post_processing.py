@@ -1,17 +1,15 @@
 import os
-import pandas as pd
 import json
 import numpy as np
-from shapely.geometry import box
 from shapely.ops import unary_union
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
 import logging
-from case_study_tool import ResolvePath
+from general_tools import resolve_path
 
 
 
-def LabelAndConcatenate(gdf, colorscale = None):
+def _merge_polygons_by_level(gdf, colorscale = None):
     
     if not colorscale:
         return
@@ -52,7 +50,7 @@ def LabelAndConcatenate(gdf, colorscale = None):
     
     return gdf_merged
 
-def POC(df):   
+def _compute_poc(df):   
     # calc area of each cell
     area = df.to_crs(epsg=3857)['geometry'].area
     # find relative value to cell size
@@ -64,26 +62,26 @@ def POC(df):
     return 1 - np.exp(-r)
 
 
-def MakePolygonsPOC(pos, bin = 10):
+def _build_poc_grid(lat_t, lon_t, n_bins = 10):
     
     #define boarder
-    max_lat, min_lat = pos[0].max(), pos[0].min()
-    max_lon, min_lon = pos[1].max(), pos[1].min()
+    max_lat, min_lat = lat_t.max(), lat_t.min()
+    max_lon, min_lon = lon_t.max(), lon_t.min()
     
     # transform trajectory to geograhical Point() objects
     coords = []
-    for lat, lon in zip(pos[0], pos[1]):
+    for lat, lon in zip(lat_t, lon_t):
         coords.append(tuple([lat,lon]))
     points = [Point(xy) for xy in coords]
     
     # linearspaces for regular grid cells
-    lat = np.linspace(min_lat - 0.00001, max_lat+ 0.00001, bin+1)
-    lon = np.linspace(min_lon- 0.00001, max_lon+ 0.00001, bin+1)
+    lat = np.linspace(min_lat - 0.00001, max_lat+ 0.00001, n_bins+1)
+    lon = np.linspace(min_lon- 0.00001, max_lon+ 0.00001, n_bins+1)
     
     polygons = []
     dens = []
-    for i in range(bin):
-        for j in range(bin):
+    for i in range(n_bins):
+        for j in range(n_bins):
             # add polygons to plot (on map used XY projection : (lon, lat))
             cord_lst =  [(lon[j], lat[i]), (lon[j+1], lat[i]), (lon[j+1], lat[i+1]), (lon[j], lat[i+1]), (lon[j], lat[i])]
             poly = Polygon(cord_lst)
@@ -97,13 +95,13 @@ def MakePolygonsPOC(pos, bin = 10):
 
     # store results in dataframe
     gdf = gpd.GeoDataFrame({'geometry':polygons, 'values':dens}, crs="EPSG:4326")
-    gdf['poc'] = POC(gdf)
+    gdf['poc'] = _compute_poc(gdf)
     
     gdf = gdf[gdf['values'] != 0].reset_index()
         
     return gdf
 
-def create_poc_geojson(traj, file_name, plot_time = None):
+def export_poc_geojson(traj, file_name, plot_time = None):
     if plot_time:
         res = traj.result.sel(time = plot_time)
     else:
@@ -111,17 +109,19 @@ def create_poc_geojson(traj, file_name, plot_time = None):
     
     lats = res.lat.values.flatten()
     lons = res.lon.values.flatten()
-    pos = [lats, lons]
     
-    gdf = MakePolygonsPOC(pos, 10) # maybe add auto merging bin number in the future
+    gdf = _build_poc_grid(lats, lons, 10) # maybe add auto merging n_bins number in the future
     
     with open('DATA/colorscale.json', 'r') as f:
         data = json.load(f)
         
     file_name = file_name.replace('.nc', '.geojson')    
-    output_dir = ResolvePath("OUTPUT")  
+    output_dir = resolve_path("OUTPUT")  
     file_name = os.path.join(output_dir, file_name)
-    gdf_merged = LabelAndConcatenate(gdf.copy(), data.get('POC'))
+    gdf_merged = _merge_polygons_by_level(gdf.copy(), data.get('POC'))
     gdf_merged.to_file(file_name, driver="GeoJSON")
 
+    return
+
+def postprocess_trajectory(traj, file_name):
     return
