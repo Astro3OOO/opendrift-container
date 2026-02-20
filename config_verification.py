@@ -13,7 +13,7 @@ SIMULATION_KEYS = ['lw_obj', 'model', 'start_position', 'start_t', 'end_t',
                   'num', 'rad', 'ship', 'wdf', 'orientation', 'seed_type',
                   'time_step', 'configurations', 'file_name', 'vocabulary',
                   'backtracking', 'shpfile', 'oil_type', 'selection',
-                  'duration', 'prerun', 'forcings']
+                  'duration', 'prerun', 'forcings', 'allow_empty_ds']
 DATASET_KEYS = ['start_t', 'end_t', 'border', 'folder', 'concatenation',  'copernicus', 'user', 'pword']
 REQUIRED_KEYS = ['model','start_position', 'start_t', 'end_t']
 VOC = ["Copernicus", "ECMWF", "Copernicus_edited"]
