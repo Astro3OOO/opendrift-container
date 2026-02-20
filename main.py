@@ -1,6 +1,7 @@
 from config_verification import verify_config_file
-from case_study_tool import simulation, PrepareDataSet
-from dataset_verification import DatasetValid, SelectDataSet
+from case_study_tool import simulation
+from dataset_verification import validate_dataset
+from post_processing import postprocess_trajectory
 import sys
 import json 
 import logging
@@ -63,15 +64,25 @@ def main() -> int:
     end_t = sim_vars.get('end_t')
     if select:
         try:
+            from dataset_selection import select_dataset
+            
             folder = data_vars.get('folder')
-            data_vars.update(SelectDataSet(start_t, end_t, folder))
+            data_vars.update(select_dataset(start_t, end_t, folder))
+        except ImportError as e:
+            logging.error(f'Module dataset_selection not available: {e}')
+            return 10
         except Exception as e:
             logging.exception(f'Dataset selection failed: {e}')
             return 10
         logging.info(f'Data is selected. Reading...')
         
     try:
-        ds = PrepareDataSet(**data_vars)
+        from dataset_preparation import prepare_dataset
+        
+        ds = prepare_dataset(**data_vars)
+    except ImportError as e:
+        logging.error(f'Module dataset_preparation not available: {e}')
+        return 10
     except Exception as e:
         logging.exception(f"Dataset preparation failed: {e}")
         return 6
@@ -84,15 +95,21 @@ def main() -> int:
         return 7
     
     empty = sim_vars.pop('allow_empty_ds')
-    if not DatasetValid(ds, start_t, end_t, empty):
+    if not validate_dataset(ds, start_t, end_t, empty):
         logging.error('Dataset time validation failed. ')
         return 8
 
     try:
-        simulation(datasets=ds, std_names=vocabulary_data[vc], **sim_vars)
+        o, file_name = simulation(datasets=ds, std_names=vocabulary_data[vc], **sim_vars)
     except Exception as e:
         logging.exception(f"Simulation failed: {e}")
         return 9
+    
+    try:
+        postprocess_trajectory(o, file_name)
+    except Exception as e:
+        logging.exception(f"Postprocessing failed: {e}")
+        return 11
 
     print("Simulation completed successfully.")
     return 0
