@@ -11,11 +11,11 @@ logging.basicConfig(
 
 SIMULATION_KEYS = ['lw_obj', 'model', 'start_position', 'start_t', 'end_t',
                   'num', 'rad', 'ship', 'wdf', 'orientation', 'seed_type',
-                  'time_step', 'configurations', 'file_name', 'vocabulary',
-                  'backtracking', 'shpfile', 'oil_type', 'selection',
-                  'duration', 'prerun', 'forcings', 'allow_empty_ds', 'postprocessing']
+                  'time_step', 'configurations', 'file_name', 'backtracking',
+                  'shpfile', 'oil_type', 'duration', 'prerun', 'forcings', ]
 DATASET_KEYS = ['start_t', 'end_t', 'border', 'folder', 'concatenation',
                 'copernicus', 'user', 'pword']
+SETTINGS = ['vocabulary','selection','allow_empty_ds', 'postprocessing']
 REQUIRED_KEYS = ['model','start_position', 'start_t', 'end_t']
 VOC = ["Copernicus", "ECMWF", "Copernicus_edited"]
 CHECK = True
@@ -28,8 +28,8 @@ def verify_border(border):
             return True
     return False
 
-def unknown_keys(config: dict, sim_keys: list, ds_keys: list):
-    allowed = set(sim_keys) | set(ds_keys)
+def unknown_keys(config: dict, sim_keys: list, ds_keys: list, settings: list):
+    allowed = set(sim_keys) | set(ds_keys) | set(settings)
     return list(set(config.keys()) - allowed)
 
 def check_rad(rad):
@@ -311,18 +311,14 @@ def check_data_settings(flag, file, data_vars):
     logging.info("Data settings verified.")
     return data_vars
 
-def check_logic_vars(flag, sim_vars, file):
+def check_logic_vars(flag, set_vars, file):
     if not flag:
-        return flag, sim_vars
+        return flag, set_vars
     
     rules = {
         "selection": {
             "valid": lambda v: isinstance(v, bool),
             "error": "Invalid or missing selection flag: {}. Must be True or False. Using default: False",
-        },
-        "prerun": {
-            "valid": lambda v: isinstance(v, bool) ,
-            "error": "Invalid or missing prerun flag: {}. Must be True or False. Using default: False",
         },
         'allow_empty_ds': {
             "valid": lambda v: isinstance(v, bool) ,
@@ -331,23 +327,18 @@ def check_logic_vars(flag, sim_vars, file):
     }
     for key, rule in rules.items():
         val = file.get(key, False)
-        if val is not None and rule["valid"](val):
-            sim_vars[key] = val
+        if rule["valid"](val):
+            set_vars[key] = val
         else:
             logging.warning(rule["error"].format(val))
-            
-    if sim_vars.get('prerun'):
-        if not sim_vars.get('duration') or not sim_vars.pop('forcing_flag'):
-            logging.error(f"Incorrect configuration. Prerun flag was enabled but no forcing or duration was given. Check duration and forcings or disable prerun.")
-            flag = False
     if flag:
         logging.info('Logic variables verified, success !')
                         
-    return flag, sim_vars
+    return flag, set_vars
 
-def check_post_processing(flag, sim_vars, file):
+def check_post_processing(flag, set_vars, file):
     if not flag:
-        return sim_vars
+        return set_vars
     
     val = file.get('postprocessing', False)
     
@@ -355,18 +346,19 @@ def check_post_processing(flag, sim_vars, file):
         # Validate that all values are boolean
         if all(isinstance(v, bool) for v in val.values()) and \
             all(k in PROCESSINGS for k in val.keys()):
-            sim_vars['postprocessing'] = val
+            set_vars['postprocessing'] = val
         else:
             logging.warning(f"Invalid postprocessing values: {val}. All values must be boolean.")
-            sim_vars['postprocessing'] = False
+            set_vars['postprocessing'] = False
     else:
-        sim_vars['postprocessing'] = False
+        set_vars['postprocessing'] = False
     
-    return sim_vars
+    return set_vars
 
 def verify_config_file(file_path):
     sim_vars = dict()
     data_vars = dict()
+    set_vars = dict()
     flag = True
     try:
         with open(file_path, 'r') as f:
@@ -397,6 +389,15 @@ def verify_config_file(file_path):
                     flag = False
             if flag:
                 logging.info('Model settings verified, succes!')
+                
+        vc = config.get('vocabulary')
+        if vc in VOC:
+            set_vars['vocabulary'] = vc
+            data_vars['vocabulary'] = vc
+            logging.info('Vocabulary added.')
+        else:
+            logging.error(f"Unknown variable mapping vocabulary: {vc}")
+            flag = False
         
         if flag:        
             name = config.get('file_name')
@@ -413,15 +414,6 @@ def verify_config_file(file_path):
                 else:
                     logging.warning(f"Invalid configurations: {cnf}. Must be a dictionary. Skipping configurations.")
                 
-            vc = config.get('vocabulary')
-            if vc is not None:
-                if vc in VOC:
-                    sim_vars['vocabulary'] = vc
-                    data_vars['vocabulary'] = vc
-                    logging.info('Vocabulary added.')
-                else:
-                    logging.error(f"Unknown variable mapping vocabulary: {vc}")
-                    flag = False
                 
             forcings = config.get('forcings')
             
@@ -439,14 +431,21 @@ def verify_config_file(file_path):
                 except Exception:
                     logging.error(f"Forcing contains non-numeric values: {forcings}. Using default values : [0,0,0,0].")
                     sim_vars['forcings'] = [0,0,0,0]
+                    
+                prerun = config.get('prerun', False)   
+                sim_vars['prerun'] = bool(prerun) 
+                if prerun:
+                    if not sim_vars.get('duration') or not sim_vars.pop('forcing_flag'):
+                        logging.error(f"Incorrect configuration. Prerun flag was enabled but no forcing or duration was given. Check duration and forcings or disable prerun.")
+                        flag = False
             
-        flag, sim_vars = check_logic_vars(flag, sim_vars, config)
-        sim_vars = check_post_processing(flag, sim_vars, config)
+        flag, set_vars = check_logic_vars(flag, set_vars, config)
+        set_vars = check_post_processing(flag, set_vars, config)
         
     else:
         logging.error('Missing required keys in the configuration file.')
             
-    residuals = unknown_keys(config, SIMULATION_KEYS, DATASET_KEYS)    
+    residuals = unknown_keys(config, SIMULATION_KEYS, DATASET_KEYS, SETTINGS)    
     if len(residuals)>0:
         logging.warning(f"Unknown keys in configuration file: {residuals}")
     if flag:    
@@ -455,4 +454,4 @@ def verify_config_file(file_path):
         sim_vars_copy = sim_vars.copy()
         sim_vars_copy['duration'] = str(sim_vars_copy.get('duration',None))
         logging.info(f"Configurations used for simulation: \n {json.dumps(sim_vars_copy, indent=2)}")
-    return flag, sim_vars, data_vars
+    return flag, sim_vars, data_vars, set_vars

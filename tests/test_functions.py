@@ -4,7 +4,7 @@ from dataset_preparation import prepare_dataset
 
 
 def test_config_verification():
-    valid, sim_vars, data_vars = verify_config_file("INPUT/input_test.json")
+    valid, sim_vars, data_vars, settings = verify_config_file("INPUT/input_test.json")
     assert valid is True
 
 def test_data_preparation():

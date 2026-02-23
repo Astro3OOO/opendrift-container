@@ -117,7 +117,7 @@ def export_poc_geojson(traj, file_name, plot_time = None):
     with open('DATA/colorscale.json', 'r') as f:
         data = json.load(f)
         
-    file_name = file_name.replace('.nc', '.geojson')    
+    file_name = file_name.replace('.nc', '_poc.geojson')    
     gdf_merged = _merge_polygons_by_level(gdf.copy(), data.get('POC'))
     gdf_merged.to_file(file_name, driver="GeoJSON")
 

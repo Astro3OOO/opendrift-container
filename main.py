@@ -33,7 +33,7 @@ def main() -> int:
         return 2
 
     logging.info("Validating input...")
-    is_valid, sim_vars, data_vars = verify_config_file(input_file)
+    is_valid, sim_vars, data_vars, settings = verify_config_file(input_file)
 
     if not is_valid:
         logging.error("Validation failed.")
@@ -58,7 +58,7 @@ def main() -> int:
     Will edit data_vars['folder'] from mounted /DATSETS to symlinked /SELECTED
     '''
     
-    select = sim_vars.pop('selection')
+    select = settings.get('selection')
     start_t = sim_vars.get('start_t')
     end_t = sim_vars.get('end_t')
     if select:
@@ -88,23 +88,23 @@ def main() -> int:
 
     logging.info("Dataset ready. Running simulation...")
 
-    vc = sim_vars.pop("vocabulary")
+    vc = settings.get("vocabulary")
     if vc not in vocabulary_data:
         logging.error(f"Requested vocabulary '{vc}' not found.")
         return 7
     
-    empty = sim_vars.pop('allow_empty_ds')
+    empty = settings.get('allow_empty_ds')
     if not validate_dataset(ds, start_t, end_t, empty):
         logging.error('Dataset time validation failed. ')
         return 8
 
-    post_proc = sim_vars.pop('postprocessing')
     try:
         o, file_name = simulation(datasets=ds, std_names=vocabulary_data[vc], **sim_vars)
     except Exception as e:
         logging.exception(f"Simulation failed: {e}")
         return 9
     
+    post_proc = settings.get('postprocessing')
     if post_proc:
         try:
             from post_processing import postprocess_trajectory
