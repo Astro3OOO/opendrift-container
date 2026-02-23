@@ -1,7 +1,6 @@
 from config_verification import verify_config_file
 from case_study_tool import simulation
 from dataset_verification import validate_dataset
-from post_processing import postprocess_trajectory
 import sys
 import json 
 import logging
@@ -82,7 +81,7 @@ def main() -> int:
         ds = prepare_dataset(**data_vars)
     except ImportError as e:
         logging.error(f'Module dataset_preparation not available: {e}')
-        return 10
+        return 6
     except Exception as e:
         logging.exception(f"Dataset preparation failed: {e}")
         return 6
@@ -99,17 +98,24 @@ def main() -> int:
         logging.error('Dataset time validation failed. ')
         return 8
 
+    post_proc = sim_vars.pop('postprocessing')
     try:
         o, file_name = simulation(datasets=ds, std_names=vocabulary_data[vc], **sim_vars)
     except Exception as e:
         logging.exception(f"Simulation failed: {e}")
         return 9
     
-    try:
-        postprocess_trajectory(o, file_name)
-    except Exception as e:
-        logging.exception(f"Postprocessing failed: {e}")
-        return 11
+    if post_proc:
+        try:
+            from post_processing import postprocess_trajectory
+            
+            postprocess_trajectory(o, file_name, post_proc)
+        except ImportError as e:
+            logging.error(f'Module dataset_preparation not available: {e}')
+            return 11
+        except Exception as e:
+            logging.exception(f"Postprocessing failed: {e}")
+            return 11
 
     print("Simulation completed successfully.")
     return 0

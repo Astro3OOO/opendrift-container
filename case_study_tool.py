@@ -189,9 +189,9 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
                                  currentdir = forcings[2],
                                  currentspeed = forcings[3])
         cfgs.update(configurations)
-        o = run_sim(configurations=cfgs, start_position=start_position,
+        o_pre = run_sim(configurations=cfgs, start_position=start_position,
                    start_t=start_t, duration=duration, **constant_params)    
-        res = update_start(o)
+        res = update_start(o_pre)
         if all(r != None for r in res):
             start_position, start_t = res
             logging.info('Prerun completed, success!')

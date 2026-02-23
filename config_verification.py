@@ -13,11 +13,14 @@ SIMULATION_KEYS = ['lw_obj', 'model', 'start_position', 'start_t', 'end_t',
                   'num', 'rad', 'ship', 'wdf', 'orientation', 'seed_type',
                   'time_step', 'configurations', 'file_name', 'vocabulary',
                   'backtracking', 'shpfile', 'oil_type', 'selection',
-                  'duration', 'prerun', 'forcings', 'allow_empty_ds']
-DATASET_KEYS = ['start_t', 'end_t', 'border', 'folder', 'concatenation',  'copernicus', 'user', 'pword']
+                  'duration', 'prerun', 'forcings', 'allow_empty_ds', 'postprocessing']
+DATASET_KEYS = ['start_t', 'end_t', 'border', 'folder', 'concatenation',
+                'copernicus', 'user', 'pword']
 REQUIRED_KEYS = ['model','start_position', 'start_t', 'end_t']
 VOC = ["Copernicus", "ECMWF", "Copernicus_edited"]
 CHECK = True
+PROCESSINGS = ['POC', 'Triangle', 'Picture']
+
 # Help functions
 def verify_border(border):
     if isinstance(border, list) and len(border) == 4:
@@ -342,6 +345,25 @@ def check_logic_vars(flag, sim_vars, file):
                         
     return flag, sim_vars
 
+def check_post_processing(flag, sim_vars, file):
+    if not flag:
+        return sim_vars
+    
+    val = file.get('postprocessing', False)
+    
+    if isinstance(val, dict):
+        # Validate that all values are boolean
+        if all(isinstance(v, bool) for v in val.values()) and \
+            all(k in PROCESSINGS for k in val.keys()):
+            sim_vars['postprocessing'] = val
+        else:
+            logging.warning(f"Invalid postprocessing values: {val}. All values must be boolean.")
+            sim_vars['postprocessing'] = False
+    else:
+        sim_vars['postprocessing'] = False
+    
+    return sim_vars
+
 def verify_config_file(file_path):
     sim_vars = dict()
     data_vars = dict()
@@ -419,6 +441,7 @@ def verify_config_file(file_path):
                     sim_vars['forcings'] = [0,0,0,0]
             
         flag, sim_vars = check_logic_vars(flag, sim_vars, config)
+        sim_vars = check_post_processing(flag, sim_vars, config)
         
     else:
         logging.error('Missing required keys in the configuration file.')

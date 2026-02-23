@@ -8,7 +8,9 @@ import logging
 from general_tools import resolve_path
 
 
-
+'''
+    Probability of containtement rectangles
+'''
 def _merge_polygons_by_level(gdf, colorscale = None):
     
     if not colorscale:
@@ -116,12 +118,38 @@ def export_poc_geojson(traj, file_name, plot_time = None):
         data = json.load(f)
         
     file_name = file_name.replace('.nc', '.geojson')    
-    output_dir = resolve_path("OUTPUT")  
-    file_name = os.path.join(output_dir, file_name)
     gdf_merged = _merge_polygons_by_level(gdf.copy(), data.get('POC'))
     gdf_merged.to_file(file_name, driver="GeoJSON")
 
     return
 
-def postprocess_trajectory(traj, file_name):
+"""
+    Plume triangle 
+"""
+def export_plume_triangle(traj, file_name):
+    return
+
+
+"""
+    Trajectory picture
+"""
+def export_traj_picture(traj, file_name, plot_time = None):
+    file_name = file_name.replace('.nc', '.png')    
+    traj.plot(filename = file_name)
+    return
+
+"""
+    main function
+"""
+def postprocess_trajectory(traj, file_name, formats):
+    output_dir = resolve_path("OUTPUT")  
+    file_name = os.path.join(output_dir, file_name)
+    
+    if formats.get('POC'):
+        export_poc_geojson(traj, file_name)
+    if formats.get('Triangle'):
+        export_plume_triangle(traj, file_name)
+    if formats.get('Picture'):
+        export_traj_picture(traj, file_name)
+        
     return
