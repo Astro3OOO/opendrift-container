@@ -142,13 +142,11 @@ def export_traj_picture(traj, file_name, plot_time = None):
     main function
 """
 def postprocess_trajectory(traj, file_name, formats):
-    output_dir = resolve_path("OUTPUT")  
-    file_name = os.path.join(output_dir, file_name)
     
     if formats.get('POC'):
         export_poc_geojson(traj, file_name)
-    if formats.get('Triangle'):
-        export_plume_triangle(traj, file_name)
+    # if formats.get('Triangle'):
+    #     export_plume_triangle(traj, file_name)
     if formats.get('Picture'):
         export_traj_picture(traj, file_name)
         

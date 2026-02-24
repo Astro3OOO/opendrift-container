@@ -17,13 +17,17 @@ opendrift-container/
 ├── post_processing.py     		# gatavas trajektorijas pēcapstrāde
 │
 ├── DATA/
-│   └── VariableMapping.json    # Iekšeja vārdnīca priekš korektu parametru nosaukumu ielasīšanās
+│   ├── VariableMapping.json    # Iekšeja vārdnīca priekš korektu parametru nosaukumu ielasīšanās
+│   └── colorscale.json			# Krasu skalas līmeņi un hex krāsu kodi, atbilstosi katram līmenim. 
 │
 ├── INPUT/                      
 │   └── input_test.json			# fitktīvais konfigurācijas fails priekš conteinera testa
 │
 ├── tests/                     
 │   └── test_functions.py		# galveno funkciju testi: konfigu verificēšanas, datu sagatavošanas un simulaciju palaišanas korektības pārbaude.  
+├── pallets/             
+│   ├── POC_scale.drawio.png		    # krasu skala POC kartēm
+│   └── POC_scale.drawio_dark.png		# ta pati krasu skala tikai tumšas tēmas stilā  
 │
 ├── requirements.txt            # Python nepieciešamas paketes
 ├── Dockerfile                  # Konteinera iestatījumi
