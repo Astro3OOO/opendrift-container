@@ -15,3 +15,5 @@ output/
 tests/__pycache__/
 test_files/
 INPUT/test.json
+OUTPUT/
+SELECTED/

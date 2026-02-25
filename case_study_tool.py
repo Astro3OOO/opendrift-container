@@ -21,8 +21,6 @@ MODEL_DICT = {'OceanDrift':OceanDrift,
  
 def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_type, orientation, oil_type, shpfile=None):
     params = dict(
-        lat = start_position[0],
-        lon = start_position[1],
         number = num,
         radius = rad,
         time = start_t
@@ -44,9 +42,11 @@ def seed(o, model, lw_obj, start_position, start_t, num, rad, ship, wdf, seed_ty
     
     match seed_type:
         case 'elements':
-            o.seed_elements(**params)
+            o.seed_elements(lat = start_position[0], lon = start_position[1], **params)
         case 'cone':
-            o.seed_cone(**params)
+            o.seed_cone(lat = start_position[0], lon = start_position[1], **params)
+        case 'shapefile':
+            o.seed_from_geopandas(shpfile, **params)
         case _:
             logging.error('Unsupported seed type')
     return o
@@ -197,7 +197,8 @@ def simulation(lw_obj=1, model='OceanDrift', start_position=None, start_t=None,
             logging.info('Prerun completed, success!')
         else:
             logging.warning('Prerun didnot complete successfully, fallback to original values')
-            
+        if constant_params.get('seed_type') == 'shapefile':
+            constant_params['seed_type'] = 'elements'
 
     o = run_sim(configurations=configurations, start_position=start_position,
                start_t=start_t, end_t=end_t, reader=reader, file_name=file_name, 

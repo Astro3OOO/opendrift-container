@@ -5,33 +5,34 @@ import sys
 import json 
 import logging
 import os
+import geopandas as gpd
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 
-def resolve_config_path(cfg: str) -> str:
+def resolve_config_path(cfg: str, target) -> str:
     if os.path.isabs(cfg):
         return cfg
 
-    if cfg.startswith("INPUT/") or cfg.startswith("/opendrift-container/INPUT/"):
+    if cfg.startswith(f"{target}/") or cfg.startswith(f"/opendrift-container/{target}/"):
         return cfg
 
-    return os.path.join("INPUT", cfg)
+    return os.path.join(target, cfg)
 
 def main() -> int:
     if len(sys.argv) < 2:
         logging.error("Usage: python main.py <config.json>")
         return 1
 
-    raw_path = sys.argv[1]
+    config_raw_path = sys.argv[1]
     
-    input_file = resolve_config_path(raw_path)
+    input_file = resolve_config_path(config_raw_path, 'INPUT')
     if not os.path.exists(input_file):
         logging.error(f"Config file '{input_file}' does not exist.")
         return 2
-
+    
     logging.info("Validating input...")
     is_valid, sim_vars, data_vars, settings = verify_config_file(input_file)
 
@@ -73,8 +74,15 @@ def main() -> int:
         except Exception as e:
             logging.exception(f'Dataset selection failed: {e}')
             return 10
-        logging.info(f'Data is selected. Reading...')
+        logging.info(f'Data is selected. ')
         
+    logging.info("Checking vocabulary...")
+    vc = settings.get("vocabulary")
+    if vc not in vocabulary_data:
+        logging.error(f"Requested vocabulary '{vc}' not found.")
+        return 7
+    
+    logging.info("Vocabulary exist. Preaparing dataset...")
     try:
         from dataset_preparation import prepare_dataset
         
@@ -85,21 +93,37 @@ def main() -> int:
     except Exception as e:
         logging.exception(f"Dataset preparation failed: {e}")
         return 6
-
-    logging.info("Dataset ready. Running simulation...")
-
-    vc = settings.get("vocabulary")
-    if vc not in vocabulary_data:
-        logging.error(f"Requested vocabulary '{vc}' not found.")
-        return 7
     
+    logging.info("Dataset prepared. Validating...")
     empty = settings.get('allow_empty_ds')
     if not validate_dataset(ds, start_t, end_t, empty):
         logging.error('Dataset time validation failed. ')
         return 8
 
+    shape = None
+    allow_shapefile = settings.get('allow_shapefile')
+    if allow_shapefile:
+        logging.info("Seeding from shapefile activated. Reading shapefile...")
+        if len(sys.argv) > 2:
+            shape_raw_path = sys.argv[2]
+            os.makedirs("SHAPE", exist_ok=True)
+            shape_file = resolve_config_path(shape_raw_path, 'SHAPE')
+            if not os.path.exists(shape_file):
+                logging.error(f"Shape file '{shape_file}' does not exist.")
+                return 12
+            try:
+                shape = gpd.read_file(shape_file)
+                logging.info(f'Shapefile {shape_file} readed successfully!')
+            except Exception as e:
+                logging.error(f'Unable to read shapefile {shape_file}. Error occur {e}')
+                return 13
+        else:
+            logging.error(f'Settings selected to seed elements from shapefile, but no shapefile provided!')
+            return 14
+        
+    logging.info("Dataset ready. Running simulation...")
     try:
-        o, file_name = simulation(datasets=ds, std_names=vocabulary_data[vc], **sim_vars)
+        o, file_name = simulation(datasets=ds, std_names=vocabulary_data[vc], shpfile=shape, **sim_vars)
     except Exception as e:
         logging.exception(f"Simulation failed: {e}")
         return 9

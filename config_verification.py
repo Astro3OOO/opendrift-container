@@ -9,13 +9,13 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 
-SIMULATION_KEYS = ['lw_obj', 'model', 'start_position', 'start_t', 'end_t',
-                  'num', 'rad', 'ship', 'wdf', 'orientation', 'seed_type',
-                  'time_step', 'configurations', 'file_name', 'backtracking',
-                  'shpfile', 'oil_type', 'duration', 'prerun', 'forcings', ]
+SIMULATION_KEYS = [ 'lw_obj', 'model', 'start_position', 'start_t', 'end_t',
+                    'num', 'rad', 'ship', 'wdf', 'orientation', 'seed_type',
+                    'time_step', 'configurations', 'file_name', 'backtracking',
+                    'oil_type', 'duration', 'prerun', 'forcings', ]
 DATASET_KEYS = ['start_t', 'end_t', 'border', 'folder', 'concatenation',
                 'copernicus', 'user', 'pword']
-SETTINGS = ['vocabulary','selection','allow_empty_ds', 'postprocessing']
+SETTINGS = ['vocabulary','selection','allow_empty_ds', 'postprocessing', 'allow_shapefile']
 REQUIRED_KEYS = ['model','start_position', 'start_t', 'end_t']
 VOC = ["Copernicus", "ECMWF", "Copernicus_edited"]
 CHECK = True
@@ -120,40 +120,31 @@ def check_seed_settings(flag, file, sim_vars):
         logging.error(f"Incorrect rad: {rad}. Using default rad=0.")
         rad = 0
     
-    # 3. specific logic for seed type        
-    if st == "elements":
-        sim_vars["seed_type"] = "elements"
-        if isinstance(rad, int):
-            sim_vars["rad"] = rad
-        elif isinstance(rad, list) and len(rad) == coords:
-            sim_vars["rad"] = rad
-        else:
-            logging.error(f"Incorrect rad={rad} for seed_type=elements. Using rad=0.")
-            sim_vars["rad"] = 0               
-    elif st == "cone":
-        sim_vars["seed_type"] = "cone"
-        # Mandatory rule: lat/lon sizes must be exactly 2
-        if coords != 2:
-            logging.error(
-                f"cone seed type requires exactly 2 coordinates (lat, lon). "
-                f"Got {coords}. Forcing rad=0."
-            )
-            sim_vars["rad"] = 0
-            return flag, sim_vars
-
-        if isinstance(rad, int):
-            sim_vars["rad"] = rad
-        elif isinstance(rad, list) and len(rad) == 2:
-            sim_vars["rad"] = rad
-        else:
-            logging.error(f"Incorrect rad={rad} for seed_type=cone. Using rad=0.")
-            sim_vars["rad"] = 0
+    if isinstance(rad, int):
+        sim_vars["rad"] = rad
+    elif isinstance(rad, list) and len(rad) == coords:
+        sim_vars["rad"] = rad
     else:
-        logging.warning(
-            f"Incorrect seed_type: {st}. Using default seed_type=elements."
-        )
-        sim_vars["seed_type"] = "elements"
-        sim_vars["rad"] = rad if isinstance(rad, int) else 0
+        logging.error(f"Incorrect rad={rad} for seed_type=elements. Using rad=0.")
+        sim_vars["rad"] = 0 
+    # 3. specific logic for seed type   
+    match st:
+        case "elements":     
+            sim_vars["seed_type"] = st
+        case "cone":     
+            sim_vars["seed_type"] = st
+            if coords != 2:
+                logging.error(
+                    f"cone seed type requires exactly 2 coordinates (lat, lon). "
+                    f"Got {coords}. Forcing rad=0."
+                )
+                sim_vars["rad"] = 0
+        case "shapefile":     
+            sim_vars["seed_type"] = st
+        case _:
+            logging.warning(f"Incorrect seed_type: {st}. Using default seed_type=elements.")
+            sim_vars["seed_type"] = "elements"
+            sim_vars["rad"] = rad if isinstance(rad, int) else 0
         
     return flag, sim_vars
 
@@ -355,6 +346,20 @@ def check_post_processing(flag, set_vars, file):
     
     return set_vars
 
+def _allow_shapefile(flag, set_vars, sim_vars, config):
+    if not flag:
+        return flag, set_vars
+    model = sim_vars.get('model')
+    seed_type = sim_vars.get('seed_type')
+    allow_shapefile = config.get('allow_shapefile', False)
+    if allow_shapefile:
+        if model == 'OpenOil' and seed_type == 'shapefile':
+            set_vars['allow_shapefile'] = True
+        else:
+            logging.error(f'Inapropriate settings for seeding from shapefile : model = {model}, seed_type = {seed_type}, allow_shapefile = {allow_shapefile}.')
+            flag = False
+    return flag, set_vars
+
 def verify_config_file(file_path):
     sim_vars = dict()
     data_vars = dict()
@@ -441,7 +446,7 @@ def verify_config_file(file_path):
             
         flag, set_vars = check_logic_vars(flag, set_vars, config)
         set_vars = check_post_processing(flag, set_vars, config)
-        
+        flag, set_vars= _allow_shapefile(flag, set_vars, sim_vars, config)
     else:
         logging.error('Missing required keys in the configuration file.')
             
@@ -454,4 +459,5 @@ def verify_config_file(file_path):
         sim_vars_copy = sim_vars.copy()
         sim_vars_copy['duration'] = str(sim_vars_copy.get('duration',None))
         logging.info(f"Configurations used for simulation: \n {json.dumps(sim_vars_copy, indent=2)}")
+        logging.info(f"Additional settings: \n {json.dumps(set_vars, indent=2)}")
     return flag, sim_vars, data_vars, set_vars

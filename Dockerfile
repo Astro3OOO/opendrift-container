@@ -15,9 +15,6 @@ COPY *.py /opendrift-container/
 COPY DATA /opendrift-container/DATA/
 COPY INPUT /opendrift-container/INPUT/
 COPY tests /opendrift-container/tests
-# COPY SHAPEFILE /opendrift-container/SHAPEFILE/
-
-
 
 # Create output folder (optional, ensures folder exists)
 RUN mkdir -p /opendrift-container/OUTPUT
