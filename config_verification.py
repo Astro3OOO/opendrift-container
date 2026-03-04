@@ -19,7 +19,7 @@ SETTINGS = ['vocabulary','selection','allow_empty_ds', 'postprocessing', 'allow_
 REQUIRED_KEYS = ['model','start_position', 'start_t', 'end_t']
 VOC = ["Copernicus", "ECMWF", "Copernicus_edited"]
 CHECK = True
-PROCESSINGS = ['POC', 'Triangle', 'Picture']
+PROCESSINGS = ['POC', 'Triangle', 'Picture', 'ConvexHull']
 
 # Help functions
 def verify_border(border):

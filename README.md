@@ -89,5 +89,6 @@ Visām apakšminētām configirācijas atribūtām jābūt apkopotiem viena vien
 	- *allow_empty_ds* - DEBUGGING variable. Netiek lietots simulācijās, ir domats konteinera testiem kad netiek nodoti dati. Pēc noklusējuma ir `False`, tāde veidā aizliedzot palaist simulaciju bez datiem. [`bool`]
 	- *postprocessing* - var izvelēties, kā apstradāt trajektorijas failu pēc simulācijas pabeigšanas. [`dict`] Pēc noklusējuma tas ir izslegts, bet var ieslegt ar sekojošam atslēgam:
 		- *POC* - atgriez `.geojson` failu ar taisnstūru multipoligoniem, kur krāsa norāda uz dota reģiona objekta saturešanas vārbutību. [Krāsu skala](pallets/POC_scale.drawio.png) [`bool`] 
-		- *Triangle* - atgriež `.geojson` failu ar trajektorijas trīssturi. [`bool`]
+		<!-- - *Triangle* - atgriež `.geojson` failu ar trajektorijas trīssturi. [`bool`] -->
+		- 'ConvexHull' - atgriež `.geojson` failu ar minimālo poligonu, kas parklāj visus punktus. [`bool`]
 		- *Picture* - atgriež trajektorijas bildi `.png` formatā. [`bool`]

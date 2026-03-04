@@ -2,8 +2,9 @@ import os
 import json
 import numpy as np
 from shapely.ops import unary_union
+import shapely 
 import geopandas as gpd
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point, Polygon, MultiPoint
 import logging
 from general_tools import resolve_path
 
@@ -71,14 +72,13 @@ def _build_poc_grid(lat_t, lon_t, n_bins = 10):
     max_lon, min_lon = lon_t.max(), lon_t.min()
     
     # transform trajectory to geograhical Point() objects
-    coords = []
+    points = []
     for lat, lon in zip(lat_t, lon_t):
-        coords.append(tuple([lat,lon]))
-    points = [Point(xy) for xy in coords]
+        points.append(Point((lon, lat)))
     
     # linearspaces for regular grid cells
-    lat = np.linspace(min_lat - 0.00001, max_lat+ 0.00001, n_bins+1)
-    lon = np.linspace(min_lon- 0.00001, max_lon+ 0.00001, n_bins+1)
+    lat = np.linspace(min_lat - 0.00001, max_lat + 0.00001, n_bins+1)
+    lon = np.linspace(min_lon - 0.00001, max_lon + 0.00001, n_bins+1)
     
     polygons = []
     dens = []
@@ -88,12 +88,7 @@ def _build_poc_grid(lat_t, lon_t, n_bins = 10):
             cord_lst =  [(lon[j], lat[i]), (lon[j+1], lat[i]), (lon[j+1], lat[i+1]), (lon[j], lat[i+1]), (lon[j], lat[i])]
             poly = Polygon(cord_lst)
             polygons.append(poly)
-            
-            # but trajectory (points) are stored as (lat, lon)
-            # calculate how many points each polygons contains 
-            cord_lst_check = [(lat[i], lon[j]), (lat[i], lon[j+1]), (lat[i+1], lon[j+1]),(lat[i+1], lon[j]), (lat[i], lon[j])]
-            poly_check = Polygon(cord_lst_check)
-            dens.append(sum(poly_check.contains(points)))
+            dens.append(sum(poly.contains(points)))
 
     # store results in dataframe
     gdf = gpd.GeoDataFrame({'geometry':polygons, 'values':dens}, crs="EPSG:4326")
@@ -138,6 +133,27 @@ def export_traj_picture(traj, file_name, plot_time = None):
     traj.plot(filename = file_name)
     return
 
+def export_convex_hull(traj, file_name, plot_time = None):
+    
+    if plot_time:
+        res = traj.result.sel(time = plot_time)
+    else:
+        res = traj.result.sel(time = traj.result.time[-1])
+    
+    lats = res.lat.values.flatten()
+    lons = res.lon.values.flatten()
+    
+    points = []
+    for lat, lon in zip(lats, lons):
+        points.append(Point((lon, lat)))
+    pol = shapely.convex_hull(MultiPoint(points))
+    
+    gdf = gpd.GeoDataFrame({'geometry':pol}, crs="EPSG:4326")
+    file_name = file_name.replace('.nc', '_convex_hull.geojson')  
+    gdf.to_file(file_name, driver="GeoJSON")
+    
+    return
+
 """
     main function
 """
@@ -149,5 +165,8 @@ def postprocess_trajectory(traj, file_name, formats):
     #     export_plume_triangle(traj, file_name)
     if formats.get('Picture'):
         export_traj_picture(traj, file_name)
+    
+    if formats.get('ConvexHull'):
+        export_convex_hull(traj, file_name)
         
     return
