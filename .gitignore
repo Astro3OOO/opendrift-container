@@ -18,3 +18,4 @@ INPUT/test.json
 OUTPUT/
 SELECTED/
 SHAPE/
+tmp-env/
