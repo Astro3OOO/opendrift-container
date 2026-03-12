@@ -133,12 +133,15 @@ def export_traj_picture(traj, file_name, plot_time = None):
     traj.plot(filename = file_name)
     return
 
+"""
+    Convex hull polygon
+"""
 def export_convex_hull(traj, file_name, plot_time = None):
     
-    if plot_time:
-        res = traj.result.sel(time = plot_time)
-    else:
+    if plot_time is None:
         res = traj.result.sel(time = traj.result.time[-1])
+    else:
+        res = traj.result.sel(time = plot_time)
     
     lats = res.lat.values.flatten()
     lons = res.lon.values.flatten()
@@ -148,11 +151,8 @@ def export_convex_hull(traj, file_name, plot_time = None):
         points.append(Point((lon, lat)))
     pol = shapely.convex_hull(MultiPoint(points))
     
-    gdf = gpd.GeoDataFrame({'geometry':pol}, crs="EPSG:4326")
-    file_name = file_name.replace('.nc', '_convex_hull.geojson')  
-    gdf.to_file(file_name, driver="GeoJSON")
-    
-    return
+    gdf = gpd.GeoDataFrame({'geometry':[pol]}, crs="EPSG:4326")
+    return gdf
 
 """
     main function
@@ -167,6 +167,8 @@ def postprocess_trajectory(traj, file_name, formats):
         export_traj_picture(traj, file_name)
     
     if formats.get('ConvexHull'):
-        export_convex_hull(traj, file_name)
+        gdf = export_convex_hull(traj, file_name)
+        file_name = file_name.replace('.nc', '_convex_hull.geojson')  
+        gdf.to_file(file_name, driver="GeoJSON")
         
     return
