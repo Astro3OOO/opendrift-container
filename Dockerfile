@@ -8,14 +8,7 @@ WORKDIR /opendrift-container
 COPY requirements.txt /opendrift-container/
 
 # Install dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
-        gfortran \
-        && pip install --no-cache-dir -r requirements.txt \
-        && apt-get remove -y build-essential gfortran \
-        && apt-get autoremove -y \
-        && apt-get clean \
-        && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy all project files into container
 COPY *.py /opendrift-container/
