@@ -90,7 +90,7 @@ def prepare_dataset(start_t, end_t, border = [54, 62, 13, 30],
     # or combined datasets (atmo combined, wind combined)
     ds_ecmwf = []
     ds_netcdf = []
-    ds_copernicus = []
+    # ds_copernicus = []
     ds_wind = []
     
     start_t = prepare_time(start_t)
@@ -120,68 +120,68 @@ def prepare_dataset(start_t, end_t, border = [54, 62, 13, 30],
         else:
             ds_ecmwf, ds_netcdf, ds_wind, wind = _read_folder(folder, wind, start_t, end_t)
             
-    if copernicus:
-        import copernicusmarine
-        if user is None or pword is None:
-            logging.error('No login credentials provided.')
-        else:
-            try:
-                ds_1 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_phy_anfc_PT1H-i', chunk_size_limit=0,
-                                                    username=user, password = pword,
-                                                    minimum_latitude=border[0], maximum_latitude=border[1],
-                                                    minimum_longitude=border[2], maximum_longitude=border[3],
-                                                    minimum_depth=0.5016462206840515, maximum_depth=0.5016462206840515,
-                                                    start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
-                                                    end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
-                ds_copernicus.append(ds_1)
-                ds_1.close()
+    # if copernicus:
+    #     import copernicusmarine
+    #     if user is None or pword is None:
+    #         logging.error('No login credentials provided.')
+    #     else:
+    #         try:
+    #             ds_1 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_phy_anfc_PT1H-i', chunk_size_limit=0,
+    #                                                 username=user, password = pword,
+    #                                                 minimum_latitude=border[0], maximum_latitude=border[1],
+    #                                                 minimum_longitude=border[2], maximum_longitude=border[3],
+    #                                                 minimum_depth=0.5016462206840515, maximum_depth=0.5016462206840515,
+    #                                                 start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
+    #                                                 end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
+    #             ds_copernicus.append(ds_1)
+    #             ds_1.close()
                 
-                ds_2 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_wav_anfc_PT1H-i', chunk_size_limit=0,
-                                                    username = user,  password = pword,
-                                                    minimum_latitude=border[0], maximum_latitude=border[1],
-                                                    minimum_longitude=border[2], maximum_longitude=border[3],
-                                                    start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
-                                                    end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
-                ds_copernicus.append(ds_2)
-                ds_2.close()
+    #             ds_2 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_wav_anfc_PT1H-i', chunk_size_limit=0,
+    #                                                 username = user,  password = pword,
+    #                                                 minimum_latitude=border[0], maximum_latitude=border[1],
+    #                                                 minimum_longitude=border[2], maximum_longitude=border[3],
+    #                                                 start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
+    #                                                 end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
+    #             ds_copernicus.append(ds_2)
+    #             ds_2.close()
                 
-            except:
-                logging.warning('No data found in Copernicus Baltic. Searching in copernicus global...')
-                # ds_copernicus = []
-                try:
-                    ds_1 = copernicusmarine.open_dataset(dataset_id='cmems_mod_glo_phy_anfc_0.083deg_PT1H-m', chunk_size_limit=0,
-                                                        username=user, password = pword, 
-                                                        minimum_latitude=border[0], maximum_latitude=border[1],
-                                                        minimum_longitude=border[2], maximum_longitude=border[3],
-                                                        minimum_depth=0.49402499198913574, maximum_depth=0.49402499198913574,
-                                                        start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
-                                                        end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
-                    ds_copernicus.append(ds_1)
-                    ds_1.close()
+    #         except:
+    #             logging.warning('No data found in Copernicus Baltic. Searching in copernicus global...')
+    #             # ds_copernicus = []
+    #             try:
+    #                 ds_1 = copernicusmarine.open_dataset(dataset_id='cmems_mod_glo_phy_anfc_0.083deg_PT1H-m', chunk_size_limit=0,
+    #                                                     username=user, password = pword, 
+    #                                                     minimum_latitude=border[0], maximum_latitude=border[1],
+    #                                                     minimum_longitude=border[2], maximum_longitude=border[3],
+    #                                                     minimum_depth=0.49402499198913574, maximum_depth=0.49402499198913574,
+    #                                                     start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
+    #                                                     end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
+    #                 ds_copernicus.append(ds_1)
+    #                 ds_1.close()
 
-                    ds_2 = copernicusmarine.open_dataset(dataset_id='cmems_mod_glo_wav_anfc_0.083deg_PT3H-i', chunk_size_limit=0, 
-                                                        username=user, password = pword,
-                                                        minimum_latitude=border[0], maximum_latitude=border[1],
-                                                        minimum_longitude=border[2], maximum_longitude=border[3],
-                                                        start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
-                                                        end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
-                    ds_copernicus.append(ds_2)
-                    ds_2.close()
+    #                 ds_2 = copernicusmarine.open_dataset(dataset_id='cmems_mod_glo_wav_anfc_0.083deg_PT3H-i', chunk_size_limit=0, 
+    #                                                     username=user, password = pword,
+    #                                                     minimum_latitude=border[0], maximum_latitude=border[1],
+    #                                                     minimum_longitude=border[2], maximum_longitude=border[3],
+    #                                                     start_datetime=start_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')),
+    #                                                     end_datetime=end_t.replace(tzinfo=zoneinfo.ZoneInfo('UTC')))
+    #                 ds_copernicus.append(ds_2)
+    #                 ds_2.close()
 
-                except:
-                    logging.warning('No requested data in Copernicus Global.')
-            ds_3 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_wav_anfc_static', chunk_size_limit=0,
-                                                username = user, password = pword,
-                                                minimum_latitude=border[0], maximum_latitude=border[1],
-                                                minimum_longitude=border[2], maximum_longitude=border[3])
-            ds_copernicus.append(ds_3)
-            ds_3.close()
+    #             except:
+    #                 logging.warning('No requested data in Copernicus Global.')
+    #         ds_3 = copernicusmarine.open_dataset(dataset_id='cmems_mod_bal_wav_anfc_static', chunk_size_limit=0,
+    #                                             username = user, password = pword,
+    #                                             minimum_latitude=border[0], maximum_latitude=border[1],
+    #                                             minimum_longitude=border[2], maximum_longitude=border[3])
+    #         ds_copernicus.append(ds_3)
+    #         ds_3.close()
                 
     if wind:
         if len(ds_netcdf)>0:
             ds_netcdf += ds_wind
-        if len(ds_copernicus)>0:
-            ds_copernicus += ds_wind
+        # if len(ds_copernicus)>0:
+        #     ds_copernicus += ds_wind
     
     result = []
     if vocabulary == 'ECMWF':
@@ -191,9 +191,9 @@ def prepare_dataset(start_t, end_t, border = [54, 62, 13, 30],
         if len(ds_netcdf) > 0:
             result += ds_netcdf
             logging.info('Returnng Copernicus NetCDF dataset')
-        if len(ds_copernicus) > 0:
-            result += ds_copernicus
-            logging.info('Returnng Copernicus requested dataset')
+        # if len(ds_copernicus) > 0:
+        #     result += ds_copernicus
+        #     logging.info('Returnng Copernicus requested dataset')
     elif len(ds_netcdf) > 0:
         result += ds_netcdf
         logging.info('Returnng unspecified NetCDF dataset')
