@@ -11,9 +11,6 @@ import logging
 from general_tools import prepare_time, resolve_path
 
 
-logger_cop = logging.getLogger('copernicusmarine') 
-logger_cop.setLevel(logging.INFO)
-
 MODEL_DICT = {'OceanDrift':OceanDrift,
               'Leeway':Leeway,
               'ShipDrift':ShipDrift,
