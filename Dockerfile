@@ -21,6 +21,8 @@
 
 # # Default command when container runs
 # CMD ["python", "main.py"]
+
+
 # Stage 1: Builder (includes tests)
 FROM python:3.12-slim AS builder
 WORKDIR /opendrift-container
@@ -30,7 +32,8 @@ COPY *.py /opendrift-container/
 COPY DATA /opendrift-container/DATA/
 COPY INPUT /opendrift-container/INPUT/
 COPY tests /opendrift-container/tests
-RUN pytest tests  # run tests at build time
+RUN pytest tests  
+# run tests at build time
 
 # Stage 2: Production image
 FROM python:3.12-slim
