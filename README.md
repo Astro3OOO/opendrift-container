@@ -7,14 +7,16 @@ Konteineris ir paradzēts jūras objektu dreifa simulācijas palaišanai. Projek
 opendrift-container/
 │
 ├── main.py                     # pamata programma
-├── config_verification.py      # JSON faila validācija un sadalīšana uz simulācijas un datu konfigurācijam
-├── case_study_tool.py          # simulācijas funkcijas
-├── dataset_verification.py     # Datasetu validācija. Pārbauda vai ievadītais laiks pārklājās as datu laikiem
-├── dataset_selection.py        # Datasetu automatizēta izvelēšana atkarība no pieprasīta laika. Ja prognozes nav sadalīti pēc modeļiem apakšmapēs, izdara to un ar simbolisko saiti pievieno konteinerim vajadzīgus failus
-├── dataset_preparation.py      # Ielasa datasetus un sagatavo tos lietojumam simulācijā
-├── general_tools.py     		# Rīki, kurus lieto vairāki moduli
-├── file_clusterization.py      # Rīks, lai sadalītu falus apakšmapēs atbilstoši unikāliem nosaukumiem failu nosaukumā (lietots iekš dataset_selection.py)
-├── post_processing.py     		# gatavas trajektorijas pēcapstrāde
+├── src/
+│   ├── config_verification.py      # JSON faila validācija un sadalīšana uz simulācijas un datu konfigurācijam
+│   ├── case_study_tool.py          # simulācijas funkcijas
+│   ├── general_tools.py     		# Rīki, kurus lieto vairāki moduli
+│   ├── file_clusterization.py      # Rīks, lai sadalītu falus apakšmapēs atbilstoši unikāliem nosaukumiem failu nosaukumā (lietots iekš dataset_selection.py)
+│   ├── post_processing.py     		# gatavas trajektorijas pēcapstrāde
+│   └── dataset_tools/
+│       ├── dataset_verification.py     # Datasetu validācija. Pārbauda vai ievadītais laiks pārklājās as datu laikiem
+│       ├── dataset_selection.py        # Datasetu automatizēta izvelēšana atkarība no pieprasīta laika. 
+│       └── dataset_preparation.py      # Ielasa datasetus un sagatavo tos lietojumam simulācijā
 │
 ├── DATA/
 │   ├── VariableMapping.json    # Iekšeja vārdnīca priekš korektu parametru nosaukumu ielasīšanās
