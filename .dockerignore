@@ -14,3 +14,4 @@ output/
 tests/__pycache__/
 test_files/
 /pallets
+INPUT/README.md
