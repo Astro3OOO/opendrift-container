@@ -1,7 +1,6 @@
-from config_verification import verify_config_file
-from case_study_tool import simulation
-from dataset_preparation import prepare_dataset
-
+from src.case_study_tool import simulation
+from src.dataset_tools.dataset_preparation import prepare_dataset
+from src.config_verification import verify_config_file
 
 def test_config_verification():
     valid, sim_vars, data_vars, settings = verify_config_file("INPUT/input_test.json")
@@ -10,11 +9,7 @@ def test_config_verification():
 def test_data_preparation():
     data_vars =  {
         "start_t": "2024-06-01 00:00:00",
-        "end_t": "2024-06-03 00:00:00",
-        "border": [56, 59, 21, 25],
-        "copernicus": True,
-        "user":None,
-        "pword":None
+        "end_t": "2024-06-03 00:00:00"
     }
     try:
         ds = prepare_dataset(**data_vars)

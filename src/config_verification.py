@@ -13,8 +13,7 @@ SIMULATION_KEYS = [ 'lw_obj', 'model', 'start_position', 'start_t', 'end_t',
                     'num', 'rad', 'ship', 'wdf', 'orientation', 'seed_type',
                     'time_step', 'configurations', 'file_name', 'backtracking',
                     'oil_type', 'duration', 'prerun', 'forcings', ]
-DATASET_KEYS = ['start_t', 'end_t', 'border', 'folder', 'concatenation',
-                'copernicus', 'user', 'pword']
+DATASET_KEYS = ['start_t', 'end_t', 'folder', 'concatenation']
 SETTINGS = ['vocabulary','selection','allow_empty_ds', 'postprocessing', 'allow_shapefile']
 REQUIRED_KEYS = ['model','start_position', 'start_t', 'end_t']
 VOC = ["Copernicus", "ECMWF", "Copernicus_edited"]
@@ -22,11 +21,6 @@ CHECK = True
 PROCESSINGS = ['POC', 'Triangle', 'Picture', 'ConvexHull']
 
 # Help functions
-def verify_border(border):
-    if isinstance(border, list) and len(border) == 4:
-        if border[0] < border[1] and border[2] < border[3]:
-            return True
-    return False
 
 def unknown_keys(config: dict, sim_keys: list, ds_keys: list, settings: list):
     allowed = set(sim_keys) | set(ds_keys) | set(settings)
@@ -256,10 +250,6 @@ def check_data_settings(flag, file, data_vars):
         return data_vars
     
     rules = {
-        "border": {
-            "valid": lambda v: verify_border(v),
-            "error": "Invalid or missing border: {}. Using default: [13, 30, 54, 62]",
-        },
         "folder": {
             "valid": lambda v: isinstance(v, str) and os.path.isdir(v),
             "error": "Invalid or missing folder: {}. Must be valid path.",
@@ -267,22 +257,9 @@ def check_data_settings(flag, file, data_vars):
         "concatenation": {
             "valid": lambda v: isinstance(v, bool),
             "error": "Invalid or missing concatenation: {}. Must be True or False. Using default: False",
-        },
-        "copernicus": {
-            "valid": lambda v: isinstance(v, bool) ,
-            "error": "Invalid or missing copernicus: {}. Must be True or False. Using default: False",
         }
     }
-    additional_rules = {
-        "user": {
-            "valid": lambda v: isinstance(v, str) and len(v) > 0,
-            "error": "Invalid or missing user: {}. Must be non-empty string.",
-        },
-        "pword": {
-            "valid": lambda v: isinstance(v, str) and len(v) > 0,
-            "error": "Invalid or missing pword: {}. Must be non-empty string.",
-        },
-    }
+
 
     for key, rule in rules.items():
         val = file.get(key)
@@ -290,14 +267,6 @@ def check_data_settings(flag, file, data_vars):
             data_vars[key] = val
         else:
             logging.warning(rule["error"].format(val))
-            
-    if data_vars.get("copernicus", False):
-        for key, rule in additional_rules.items():
-            val = file.get(key)
-            if val is not None and rule["valid"](val):
-                data_vars[key] = val
-            else:
-                logging.error(rule["error"].format(val))
 
     logging.info("Data settings verified.")
     return data_vars

@@ -1,4 +1,3 @@
-import os
 import json
 import numpy as np
 from shapely.ops import unary_union
@@ -6,8 +5,6 @@ import shapely
 import geopandas as gpd
 from shapely.geometry import Point, Polygon, MultiPoint
 import logging
-from general_tools import resolve_path
-
 
 '''
     Probability of containtement rectangles

@@ -1,5 +1,5 @@
-from general_tools import prepare_time, resolve_path
-from file_clusterization import cluster_files
+from src.general_tools import prepare_time, resolve_path
+from src.file_clusterization import cluster_files
 import logging
 import os
 from pathlib import Path
