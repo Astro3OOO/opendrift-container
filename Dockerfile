@@ -11,10 +11,11 @@ COPY requirements.txt /opendrift-container/
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy all project files into container
-COPY *.py /opendrift-container/
-COPY DATA /opendrift-container/DATA/
-COPY INPUT /opendrift-container/INPUT/
-COPY tests /opendrift-container/tests
+COPY ./src ./src
+COPY ./main.py ./main.py
+COPY ./DATA ./DATA
+COPY ./INPUT ./INPUT
+COPY ./tests ./tests
 
 # Create output folder (optional, ensures folder exists)
 RUN mkdir -p /opendrift-container/OUTPUT

@@ -1,6 +1,6 @@
-from config_verification import verify_config_file
-from case_study_tool import simulation
-from dataset_verification import validate_dataset
+from src.config_verification import verify_config_file
+from src.case_study_tool import simulation
+from src.dataset_tools.dataset_verification import validate_dataset
 import sys
 import json 
 import logging
@@ -64,7 +64,7 @@ def main() -> int:
     end_t = sim_vars.get('end_t')
     if select:
         try:
-            from dataset_selection import select_dataset
+            from src.dataset_tools.dataset_selection import select_dataset
             
             folder = data_vars.get('folder')
             data_vars.update(select_dataset(start_t, end_t, folder))
@@ -84,7 +84,7 @@ def main() -> int:
     
     logging.info("Vocabulary exist. Preaparing dataset...")
     try:
-        from dataset_preparation import prepare_dataset
+        from src.dataset_tools.dataset_preparation import prepare_dataset
         
         ds = prepare_dataset(**data_vars)
     except ImportError as e:
@@ -131,7 +131,7 @@ def main() -> int:
     post_proc = settings.get('postprocessing')
     if post_proc:
         try:
-            from post_processing import postprocess_trajectory
+            from src.post_processing import postprocess_trajectory
             
             postprocess_trajectory(o, file_name, post_proc)
         except ImportError as e:

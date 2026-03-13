@@ -2,7 +2,6 @@
 import os
 import logging
 import xarray as xr
-import zoneinfo
 from general_tools import prepare_time
 
 REQ_VARS_WAVE = ['VTM02', 'VHM0_WW', 'VHM0', 'VTM01_SW1', 'VMDR_SW1',
