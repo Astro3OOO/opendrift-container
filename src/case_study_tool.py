@@ -8,7 +8,7 @@ import numpy as np
 import os
 from opendrift.readers.reader_netCDF_CF_generic import Reader
 import logging
-from general_tools import prepare_time, resolve_path
+from src.general_tools import prepare_time, resolve_path
 
 
 MODEL_DICT = {'OceanDrift':OceanDrift,

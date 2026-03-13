@@ -1,4 +1,4 @@
-from general_tools import prepare_time
+from src.general_tools import prepare_time
 import logging
 
 logging.basicConfig(
