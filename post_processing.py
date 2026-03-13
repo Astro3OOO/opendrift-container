@@ -136,7 +136,7 @@ def export_traj_picture(traj, file_name, plot_time = None):
 """
     Convex hull polygon
 """
-def export_convex_hull(traj, file_name, plot_time = None):
+def export_convex_hull(traj, plot_time = None):
     
     if plot_time is None:
         res = traj.result.sel(time = traj.result.time[-1])
@@ -167,7 +167,7 @@ def postprocess_trajectory(traj, file_name, formats):
         export_traj_picture(traj, file_name)
     
     if formats.get('ConvexHull'):
-        gdf = export_convex_hull(traj, file_name)
+        gdf = export_convex_hull(traj)
         file_name = file_name.replace('.nc', '_convex_hull.geojson')  
         gdf.to_file(file_name, driver="GeoJSON")
         
