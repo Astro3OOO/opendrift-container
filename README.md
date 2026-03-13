@@ -26,7 +26,7 @@ opendrift-container/
 │   └── input_test.json			# fitktīvais konfigurācijas fails priekš conteinera testa
 │
 ├── tests/                     
-│   └── test_functions.py		# galveno funkciju testi: konfigu verificēšanas, datu sagatavošanas un simulaciju palaišanas korektības pārbaude.  
+│   └── test_functions.py		# galveno funkciju testi  
 ├── pallets/             
 │   ├── POC_scale.drawio.png		    # krasu skala POC kartēm
 │   └── POC_scale.drawio_dark.png		# ta pati krasu skala tikai tumšas tēmas stilā  
@@ -38,13 +38,11 @@ opendrift-container/
 └── README.md    
 ```
 # Setup & Usage
-
-
--image izveidošana:
+- Image izveidošana:
 
 ```docker build -t opendrift-container .```
 
--konteinera palaišana:
+- Konteinera palaišana:
 
 ```
 docker run \
@@ -53,3 +51,4 @@ docker run \
 	-v path/to/store/results:/OUTPUT \
 	opendrift-container python main.py config.json 
 ``` 
+
