@@ -32,7 +32,7 @@ COPY *.py /opendrift-container/
 COPY DATA /opendrift-container/DATA/
 COPY INPUT /opendrift-container/INPUT/
 COPY tests /opendrift-container/tests
-RUN python pytest tests  
+RUN python -m pytest tests  
 # run tests at build time
 
 # Stage 2: Production image
