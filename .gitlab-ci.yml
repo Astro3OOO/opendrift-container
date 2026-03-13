@@ -1,6 +1,7 @@
 stages:
   - build
   - test
+  - push
 
 build-image:
   stage: build
@@ -9,10 +10,6 @@ build-image:
     - shell
   script:
     - docker build -t opendrift-container .
-    - docker run --rm opendrift-container python -m pytest tests
-    - docker tag opendrift-container 10.142.47.233:80/fc/opendrift-container:latest
-    - docker login 10.142.47.233:80 -u="$HARBOR_USER" -p="$HARBOR_PASSWORD"
-    - docker push 10.142.47.233:80/fc/opendrift-container:latest
 
 test-container:
   stage: test
@@ -20,4 +17,16 @@ test-container:
   tags:
     - shell
   script:
-    - docker run opendrift-container python main.py input_test.json
+    - docker run --rm opendrift-container python -m pytest tests
+    - docker run --rm opendrift-container python main.py input_test.json
+
+push-image:
+  stage: push
+  image: docker:latest
+  tags:
+    - shell
+  script:
+    - docker tag opendrift-container 10.142.47.233:80/fc/opendrift-container:latest
+    - docker login 10.142.47.233:80 -u="$HARBOR_USER" -p="$HARBOR_PASSWORD"
+    - docker push 10.142.47.233:80/fc/opendrift-container:latest
+
