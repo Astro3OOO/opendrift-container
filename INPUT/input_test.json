@@ -11,5 +11,6 @@
     "time_step": 3600,
     "border": [56, 59, 21, 25],
     "file_name": "test_output.nc",
-    "allow_empty_ds":true
+    "allow_empty_ds":true,
+    "vocabulary":"ECMWF"
 }
