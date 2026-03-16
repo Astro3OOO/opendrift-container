@@ -54,7 +54,7 @@ docker run \
 # Workflow design
 ```mermaid
 flowchart TD;
-	A[Start main.py] --> B[Get raw file];
+	A[Start main.py] --> B[Get raw config file];
 	B --> C[Resolve path];
 	C --> D{Path exists?};
 	D -- No --> Q1[Exit code 1 or 2];
