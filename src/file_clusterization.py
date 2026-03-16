@@ -26,12 +26,10 @@ def unique_sequences(tokens:list) -> list:
     """
     Return a list of unique tokens, preserving order.
     """
-    seen = set()
     unique_tokens = []
 
     for token in tokens:
-        if token not in seen:
-            seen.add(token)
+        if token not in unique_tokens:
             unique_tokens.append(token)
 
     return unique_tokens
