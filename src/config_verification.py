@@ -16,7 +16,7 @@ SIMULATION_KEYS = [ 'lw_obj', 'model', 'start_position', 'start_t', 'end_t',
 DATASET_KEYS = ['start_t', 'end_t', 'folder', 'concatenation']
 SETTINGS = ['vocabulary','selection','allow_empty_ds', 'postprocessing', 'allow_shapefile']
 REQUIRED_KEYS = ['model','start_position', 'start_t', 'end_t']
-VOC = ["Copernicus", "ECMWF", "Copernicus_edited"]
+VOC = ["Copernicus", "ECMWF"]
 CHECK = True
 PROCESSINGS = ['POC', 'Triangle', 'Picture', 'ConvexHull']
 

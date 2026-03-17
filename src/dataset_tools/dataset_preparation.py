@@ -127,7 +127,7 @@ def prepare_dataset(start_t, end_t, folder = None, concatenation =False, vocabul
     if vocabulary == 'ECMWF':
         result += ds_ecmwf
         logging.info('Returnng ECMWF dataset')
-    elif (vocabulary == 'Copernicus') or (vocabulary == 'Copernicus_edited'):
+    elif (vocabulary == 'Copernicus'):
         if len(ds_netcdf) > 0:
             result += ds_netcdf
             logging.info('Returnng Copernicus NetCDF dataset')

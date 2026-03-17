@@ -116,7 +116,6 @@ def select_dataset(start_t, end_t, folder) -> dict:
     files = read_root_directory(folder)
     # Select files that has overlaping time interval with requested time. Return list [path1, path2, ... ]
     requested = filter_files_by_time_interval(start_t, end_t, files)
-    print(requested)
     # Re-root selected files with symlink to new folder 'SELECTED' 
     new_folder = symlink_selected_files(requested)
     changes['folder'] = new_folder
