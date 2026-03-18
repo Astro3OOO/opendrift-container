@@ -93,7 +93,7 @@ flowchart TD;
 	L -- No ---> Z[Finish];
 	Z --> END[Exit code 0];
 classDef exit fill:#f88,stroke:#000,stroke-width:1px;
-class Q1,Q3,Q5,Q9,G2,H2,I2,J2,K2,L3 exit;
 classDef green fill:#9F7,stroke:#333,stroke-width:2px;
+class Q1,Q3,Q5,Q9,G2,H2,I2,J2,K2,L3 exit;
 class END green 
 ```
