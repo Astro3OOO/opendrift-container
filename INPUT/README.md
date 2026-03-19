@@ -3,7 +3,7 @@
 Visām apakšminētām configirācijas atribūtām jābūt apkopotiem viena vienotā JSON failā, piemēram kā: [config.json](INPUT/input_test.json).
 
 - **OBLIGĀTIE**
-    - *model* - modeļu veids, viens no dotiem: OceanDrift, Leeway vai ShipDrift. [`str`]
+    - *model* - modeļu veids, viens no dotiem: OceanDrift, Leeway, ShipDrift vai OpenOil. [`str`]
     - *start_position* - sākuma pozicijas koordinātes. Saraksts ar garumu 2, kur pirmā vietā ir `Latitude` un otrā `Longitude`. Garumam un platumam var būt gan `float` gan sraksti ar `float`, tomēr ir obligāti, lai izmēri sarakstiem sakrīt. Pie tam, ja turpmāk ir izvēlets `"seed_type" = "cone"`, tad obligāti lai katra coordinate sastāv tieši no divām vertībam (līnija sākumpunkts un beigu punkts). [`list`] 
     - *start_t* - sakuma laiks, kas ir ielasmas ar `pandas.to_datetime`. piemēram : `2025-12-08 11:00:00`. [`str`]
     - *end_t* - beigu laiks, kas ir ielasmas ar `pandas.to_datetime`. piemēram : `2025-12-31 12:00:00`. [`str`]
@@ -23,6 +23,7 @@ Visām apakšminētām configirācijas atribūtām jābūt apkopotiem viena vien
     - *lw_obj* - Leeway objektu numurs, no 1 līdz 85. [Leeway objektu saraksts](https://github.com/OpenDrift/opendrift/blob/master/opendrift/models/OBJECTPROP.DAT). Pēc noklusējuma tas ir 1. [`int`]
     - *ship* - nosakošais parametrs priekš ShipDrift modeļa. Tas ir 4 vērtību saraksts ar kuģu izmēriem [length, beam, height, draft] metros, pēc noklusējuma tas ir [62, 8, 10, 5]. [`list`]
         - *orientation* - kuģu priekšejas daļas orientācija pret vēju. Var būt 'left', 'right' un 'random'. Pēc noklusejuma tas ir 'random', kas nozīme, ka use no objektiem būs ar kreiso un puse būs ar labo sāni pret vēju. [`str`]
+    - *oil_type* - Naftas produkta standartizēts nosaukums. [Nosaukumu saraksts](https://adios.orr.noaa.gov/oils) [Excel saraksts ar nosaukumiem](https://lvgmc.sharepoint.com/:x:/s/KSMN/IQCwtRzJHfH-QJk_J9iTLO2RAUri3_0D3OOroeiIFqNQtAk?e=L5WPIg) [`str`]
 - **PAPILDUS**
     - *configurations* - var pievienot papildus simulācijas konfigurācijas no [saraksta](https://lvgmc.sharepoint.com/:x:/s/KSMN/IQCL8Fl45boXSbFMqqSm7mWGAXYaslD0hSFFY1kOkYhtdfU?e=grtsTH). [`dict`]
     - *file_name* - var pievienot *output* faila nosaukumu. Ja nav noradīts, tad tas tiek ģenerēts automātiski: '{model}_{start_time}_{now_time}.nc'. [`str`]
