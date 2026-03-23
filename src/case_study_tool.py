@@ -1,5 +1,5 @@
 from opendrift.models.oceandrift import OceanDrift
-from opendrift.models.leeway import Leeway
+from src.leeway_overwrite import Leeway
 from opendrift.models.shipdrift import ShipDrift
 from opendrift.models.openoil import OpenOil
 import datetime as dt
