@@ -37,3 +37,5 @@ Visām apakšminētām configirācijas atribūtām jābūt apkopotiem viena vien
         <!-- - *Triangle* - atgriež `.geojson` failu ar trajektorijas trīssturi. [`bool`] -->
         - *ConvexHull* - atgriež `.geojson` failu ar minimālo poligonu, kas parklāj visus punktus. [`bool`]
         - *Picture* - atgriež trajektorijas bildi `.png` formatā. [`bool`]
+        - *Polygons* - atgriež `.geojson` failu, ar konusveida poligoniem. Poligoni veidojas, pienēmot pirmo simulācijas punktu un kātru nākamo veselo stundu.  Poligoniem ir noradīta 'time' vērtība, kas norāda **līdz** kuram laikam ir aptvērti simulacijas punkti. 
+        - *Rectangles*  - lidzīgs *Polygons* izejas failam, tikai poligonu vietas ir fiksēti taisnstūri. Taisnstūri veidojas no sākumpunktu koodinātam un visām nākamo stundu koodinātam, ņemot lielākas un mazākas koordinātu vērtības. Tādā veidā garantejot, ka pēc katras nākamas iterācijas, apgabals palielinās. 

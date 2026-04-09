@@ -5,10 +5,27 @@ import shapely
 import geopandas as gpd
 from shapely.geometry import Point, Polygon, MultiPoint
 import logging
+import pandas as pd
+
+
+
+"""
+    General purpose function
+"""
+def _extract_points(traj, plot_time = None) :
+    if plot_time:
+        res = traj.result.sel(time = plot_time)
+    else:
+        res = traj.result.sel(time = traj.result.time[-1])
+    
+    lats = res.lat.values.flatten()
+    lons = res.lon.values.flatten()
+    return lats, lons
 
 '''
     Probability of containtement rectangles
 '''
+
 def _merge_polygons_by_level(gdf, colorscale = None):
     
     if not colorscale:
@@ -82,7 +99,8 @@ def _build_poc_grid(lat_t, lon_t, n_bins = 10):
     for i in range(n_bins):
         for j in range(n_bins):
             # add polygons to plot (on map used XY projection : (lon, lat))
-            cord_lst =  [(lon[j], lat[i]), (lon[j+1], lat[i]), (lon[j+1], lat[i+1]), (lon[j], lat[i+1]), (lon[j], lat[i])]
+            cord_lst =  [(lon[j], lat[i]), (lon[j+1], lat[i]),
+                         (lon[j+1], lat[i+1]), (lon[j], lat[i+1]), (lon[j], lat[i])]
             poly = Polygon(cord_lst)
             polygons.append(poly)
             dens.append(sum(poly.contains(points)))
@@ -96,13 +114,7 @@ def _build_poc_grid(lat_t, lon_t, n_bins = 10):
     return gdf
 
 def export_poc_geojson(traj, file_name, plot_time = None):
-    if plot_time:
-        res = traj.result.sel(time = plot_time)
-    else:
-        res = traj.result.sel(time = traj.result.time[-1])
-    
-    lats = res.lat.values.flatten()
-    lons = res.lon.values.flatten()
+    lats, lons = _extract_points(traj, plot_time)
     
     gdf = _build_poc_grid(lats, lons, 10) # maybe add auto merging n_bins number in the future
     
@@ -116,16 +128,9 @@ def export_poc_geojson(traj, file_name, plot_time = None):
     return
 
 """
-    Plume triangle 
-"""
-def export_plume_triangle(traj, file_name):
-    return
-
-
-"""
     Trajectory picture
 """
-def export_traj_picture(traj, file_name, plot_time = None):
+def export_traj_picture(traj, file_name):
     file_name = file_name.replace('.nc', '.png')    
     traj.plot(filename = file_name)
     return
@@ -134,23 +139,65 @@ def export_traj_picture(traj, file_name, plot_time = None):
     Convex hull polygon
 """
 def export_convex_hull(traj, plot_time = None):
-    
-    if plot_time is None:
-        res = traj.result.sel(time = traj.result.time[-1])
-    else:
-        res = traj.result.sel(time = plot_time)
-    
-    lats = res.lat.values.flatten()
-    lons = res.lon.values.flatten()
+    lats, lons = _extract_points(traj, plot_time)
     
     points = []
+    
     for lat, lon in zip(lats, lons):
         points.append(Point((lon, lat)))
+        
     pol = shapely.convex_hull(MultiPoint(points))
     
     gdf = gpd.GeoDataFrame({'geometry':[pol]}, crs="EPSG:4326")
     return gdf
 
+"""
+    Plume polygons
+"""
+def export_plume_polygons(traj, file_name):
+    gdfs = {}
+    
+    for time in traj.result.time.values[1:]:
+        if pd.to_datetime(time).minute == 0:    # optional, ensure we select only round hours
+            plot_time = [traj.result.time.values[0], time]
+            gdfs.update({time:export_convex_hull(traj, plot_time)})
+            
+    gdf = pd.concat(gdfs,  names=["time"]).reset_index()
+    gdf = gdf[['time', 'geometry']]
+    
+    file_name = file_name.replace('.nc', '_plume_triangles.geojson')  
+    gdf.to_file(file_name, driver="GeoJSON")
+    return 
+
+"""
+    Probability rectangles
+"""
+def _create_rectangle(traj, plot_time = None):
+    lats, lons = _extract_points(traj, plot_time)
+    
+    max_lat, min_lat = lats.max(), lats.min()
+    max_lon, min_lon = lons.max(), lons.min()
+    
+    coords = [(min_lon, min_lat), (max_lon, min_lat),
+              (max_lon, max_lat), (min_lon, max_lat), (min_lon, min_lat)]
+    
+    return Polygon(coords)
+
+def export_rectangles(traj, file_name):
+    times = []
+    rectangles = []
+    
+    for time in traj.result.time.values[1:]:
+        if pd.to_datetime(time).minute == 0:    # optional, ensure we select only round hours
+            plot_time = slice(traj.result.time.values[0], time)
+            times.append(time)
+            rectangles.append(_create_rectangle(traj, plot_time))
+    
+    gdf = gpd.GeoDataFrame({'time':times, 'geometry':rectangles}, crs="EPSG:4326") 
+            
+    file_name = file_name.replace('.nc', '_rectangles.geojson')  
+    gdf.to_file(file_name, driver="GeoJSON")
+    return
 """
     main function
 """
@@ -158,10 +205,15 @@ def postprocess_trajectory(traj, file_name, formats):
     
     if formats.get('POC'):
         export_poc_geojson(traj, file_name)
-    # if formats.get('Triangle'):
-    #     export_plume_triangle(traj, file_name)
+        
+    if formats.get('Polygons'):
+        export_plume_polygons(traj, file_name)
+        
     if formats.get('Picture'):
         export_traj_picture(traj, file_name)
+        
+    if format.get('Rectangles'):
+        export_rectangles(traj, file_name)
     
     if formats.get('ConvexHull'):
         gdf = export_convex_hull(traj)
