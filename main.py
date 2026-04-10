@@ -131,7 +131,7 @@ def main() -> int:
     post_proc = settings.get('postprocessing')
     if post_proc:
         try:
-            from src.post_processing import postprocess_trajectory
+            from src.postproc_main import postprocess_trajectory
             
             postprocess_trajectory(o, file_name, post_proc)
         except ImportError as e:
