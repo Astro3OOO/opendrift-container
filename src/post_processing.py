@@ -198,6 +198,33 @@ def export_rectangles(traj, file_name):
     file_name = file_name.replace('.nc', '_rectangles.geojson')  
     gdf.to_file(file_name, driver="GeoJSON")
     return
+
+def _create_trapezoid(traj, plot_time=None):
+    lats, lons = _extract_points(traj, plot_time)
+    
+    max_lat_idx, min_lat_idx =  np.argmax(lats), np.argmin(lats)
+    max_lon_idx, min_lon_idx =  np.argmax(lons), np.argmin(lons)  
+    
+    coords = []
+    for i in [max_lat_idx, max_lon_idx, min_lat_idx, min_lon_idx,   max_lat_idx]:
+        coords.append((lons[i],lats[i]))  
+    return Polygon(coords)
+
+def export_trapezoids(traj, file_name):
+    times = []
+    trapezoids = []
+    
+    for time in traj.result.time.values[1:]:
+        if pd.to_datetime(time).minute == 0:    # optional, ensure we select only round hours
+            plot_time = slice(traj.result.time.values[0], time)
+            times.append(time)
+            trapezoids.append(_create_trapezoid(traj, plot_time))
+    
+    gdf = gpd.GeoDataFrame({'time':times, 'geometry':trapezoids}, crs="EPSG:4326") 
+            
+    file_name = file_name.replace('.nc', '_trapezoids.geojson')  
+    gdf.to_file(file_name, driver="GeoJSON")
+    return 
 """
     main function
 """
@@ -219,5 +246,8 @@ def postprocess_trajectory(traj, file_name, formats):
         gdf = export_convex_hull(traj)
         file_name = file_name.replace('.nc', '_convex_hull.geojson')  
         gdf.to_file(file_name, driver="GeoJSON")
+        
+    if formats.get('Trapezoids'):
+        export_trapezoids(traj, file_name)
         
     return
