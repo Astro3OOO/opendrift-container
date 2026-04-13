@@ -13,9 +13,8 @@ def _create_trapezoid(traj, plot_time=None):
     max_lat_idx, min_lat_idx =  np.argmax(lats), np.argmin(lats)
     max_lon_idx, min_lon_idx =  np.argmax(lons), np.argmin(lons)  
     
-    coords = []
-    for i in [max_lat_idx, max_lon_idx, min_lat_idx, min_lon_idx,   max_lat_idx]:
-        coords.append((lons[i],lats[i]))  
+    coords = [(lons[i],lats[i]) for i in [max_lat_idx, max_lon_idx, min_lat_idx, min_lon_idx, max_lat_idx]]
+ 
     return Polygon(coords)
 
 def export_trapezoids(traj, file_name):

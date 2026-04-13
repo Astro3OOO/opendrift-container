@@ -1,6 +1,6 @@
 from src.post_processing.general_tools import extract_points
 import numpy as np
-from shapely.geometry import Point, Polygon
+from shapely import points, Polygon
 import geopandas as gpd
 from shapely.ops import unary_union
 import logging
@@ -76,9 +76,11 @@ def _build_poc_grid(lat_t, lon_t, n_bins = 10):
     max_lon, min_lon = lon_t.max(), lon_t.min()
     
     # transform trajectory to geograhical Point() objects
-    points = []
-    for lat, lon in zip(lat_t, lon_t):
-        points.append(Point((lon, lat)))
+    # points = []
+    # for lat, lon in zip(lat_t, lon_t):
+    #     points.append(Point((lon, lat)))
+        
+    all_points = points(lon_t, lat_t)
     
     # linearspaces for regular grid cells
     lat = np.linspace(min_lat - 0.00001, max_lat + 0.00001, n_bins+1)
@@ -93,7 +95,8 @@ def _build_poc_grid(lat_t, lon_t, n_bins = 10):
                          (lon[j+1], lat[i+1]), (lon[j], lat[i+1]), (lon[j], lat[i])]
             poly = Polygon(cord_lst)
             polygons.append(poly)
-            dens.append(sum(poly.contains(points)))
+            # dens.append(sum(poly.contains(points)))
+            dens.append(sum(poly.contains(all_points)))
 
     # store results in dataframe
     gdf = gpd.GeoDataFrame({'geometry':polygons, 'values':dens}, crs="EPSG:4326")
