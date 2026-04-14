@@ -26,8 +26,18 @@ def _get_handler(key):
         return _cached_handlers[key]
 
     module_name, func_name = EXPORT_HANDLERS[key]
-    module = importlib.import_module(module_name)
-    handler = getattr(module, func_name)
+    try:
+        logging.info(f'Lazy loading module {module_name}')
+        module = importlib.import_module(module_name)
+        handler = getattr(module, func_name)
+    except ImportError as e:
+        logging.error(f'Module {module} is not available: {e}')
+        return      
+    except Exception as e:
+        logging.error(f'Hadler import failed: {e}')   
+        return 
+    
+    logging.info(f'Module {module_name} imported successfully!')
     _cached_handlers[key] = handler
     return handler
 
@@ -40,14 +50,17 @@ def postprocess_trajectory(traj, file_name, formats):
     for key, enabled in formats.items():
         if not enabled or key not in EXPORT_HANDLERS:
             continue
-
+        logging.info(f'Running post processing: {key}')
         handler = _get_handler(key)
-        
-        if key == 'ConvexHull':
-            gdf = handler(traj)
-            geojson_name = file_name.replace('.nc', '_convex_hull.geojson')
-            gdf.to_file(geojson_name, driver='GeoJSON')
-        else:
-            handler(traj, file_name)
+        if handler:
+            try:
+                if key == 'ConvexHull':
+                    gdf = handler(traj)
+                    geojson_name = file_name.replace('.nc', '_convex_hull.geojson')
+                    gdf.to_file(geojson_name, driver='GeoJSON')
+                else:
+                    handler(traj, file_name)
+            except Exception as e:
+                logging.error(f'Post processing {key} failed, error: {e}')
 
     return
