@@ -6,9 +6,7 @@ import pandas as pd
 """
     Probability rectangles
 """
-def _create_rectangle(traj, plot_time = None):
-    lats, lons = extract_points(traj, plot_time)
-    
+def create_rectangle(lats, lons):    
     max_lat, min_lat = lats.max(), lats.min()
     max_lon, min_lon = lons.max(), lons.min()
     
@@ -25,7 +23,8 @@ def export_rectangles(traj, file_name):
         if pd.to_datetime(time).minute == 0:    # optional, ensure we select only round hours
             plot_time = slice(traj.result.time.values[0], time)
             times.append(time)
-            rectangles.append(_create_rectangle(traj, plot_time))
+            lats, lons = extract_points(traj, plot_time)
+            rectangles.append(create_rectangle(lats, lons))
     
     gdf = gpd.GeoDataFrame({'time':times, 'geometry':rectangles}, crs="EPSG:4326") 
             
