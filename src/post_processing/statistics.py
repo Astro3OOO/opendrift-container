@@ -44,6 +44,6 @@ def export_statistics(traj, file_name):
         'Angle to North ':angle_stat
         })
     
-    file_name = file_name.replace('.nc', '_statistics.xlsx') 
-    df.to_excel(file_name)
-    return 
+    # file_name = file_name.replace('.nc', '_statistics.xlsx') 
+    # df.to_excel(file_name)
+    return df
