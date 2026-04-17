@@ -15,6 +15,6 @@ def export_plume_polygons(traj, file_name):
     gdf = pd.concat(gdfs,  names=["time"]).reset_index()
     gdf = gdf[['time', 'geometry']]
     
-    file_name = file_name.replace('.nc', '_plume_triangles.geojson')  
+    file_name = file_name.replace('.nc', '_plume_polygons.geojson')  
     gdf.to_file(file_name, driver="GeoJSON")
     return 

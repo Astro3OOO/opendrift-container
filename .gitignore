@@ -20,3 +20,5 @@ SELECTED/
 SHAPE/
 test-env/
 shapefailiem/
+dataset_tools/__pycache__/
+post_processing/__pycache__/
