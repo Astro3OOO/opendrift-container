@@ -15,6 +15,7 @@ EXPORT_HANDLERS = {
     'ConvexHull': ('src.post_processing.convexhull', 'export_convex_hull'),
     'Trapezoids': ('src.post_processing.trapezoid', 'export_trapezoids'),
     'Statistics': ('src.post_processing.statistics', 'export_statistics'),
+    'Triangle':('src.post_processing.triangle', 'export_triangle'),
 }
 
 # global var to store imported modules and do not reimport them
