@@ -18,7 +18,7 @@ SETTINGS = ['vocabulary','selection','allow_empty_ds', 'postprocessing', 'allow_
 REQUIRED_KEYS = ['model','start_position', 'start_t', 'end_t']
 VOC = ["Copernicus", "ECMWF"]
 CHECK = True
-PROCESSINGS = ['POC', 'Triangle', 'Picture', 'ConvexHull', 'Polygons','Rectangles']
+PROCESSINGS = ['POC', 'Triangle', 'Picture', 'ConvexHull', 'Polygons', 'RotRectangles', 'MinRectangles']
 
 # Help functions
 

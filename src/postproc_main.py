@@ -11,7 +11,8 @@ EXPORT_HANDLERS = {
     'POC': ('src.post_processing.poc', 'export_poc_geojson'),
     'Polygons': ('src.post_processing.polygons', 'export_plume_polygons'),
     'Picture': ('src.post_processing.picture', 'export_traj_picture'),
-    'Rectangles': ('src.post_processing.rotation', 'export_rotated'),
+    'RotRectangles': ('src.post_processing.rotation', 'export_rotated'),
+    'MinRectangles': ('src.post_processing.rotation', 'export_minimal'),
     'ConvexHull': ('src.post_processing.convexhull', 'export_convex_hull'),
     'Triangle':('src.post_processing.triangle', 'export_triangle'),
 }
