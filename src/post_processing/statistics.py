@@ -5,18 +5,20 @@ import numpy  as np
 """
     Trajectory statistics
 """
-def export_statistics(traj, file_name):
-    
-    traj_length, _, speed = traj.get_trajectory_lengths()
-
+def export_statistics(traj):
+    # Projection
     geod = Geod(ellps="WGS84")
 
+    # Start & End points
     lon1 = traj.result.lon.isel(time=0).values
     lat1 = traj.result.lat.isel(time=0).values
+    
     lon2 = traj.result.lon.isel(time=-1).values
     lat2 = traj.result.lat.isel(time=-1).values
 
-    azimuths, _, displacement = geod.inv(lon1, lat1, lon2, lat2)
+    # Displacement & trajectory lenght calculation + statistics
+    traj_length, _, _ = traj.get_trajectory_lengths()
+    _, _, displacement = geod.inv(lon1, lat1, lon2, lat2)
     
     dist_stat = {'Mean': displacement.mean(),
                  'Max': displacement.max(),
@@ -26,6 +28,18 @@ def export_statistics(traj, file_name):
                  'Max': traj_length.max(),
                  'Min': traj_length.min(),
                  'Spread': traj_length.max() - traj_length.min()}
+    
+    # select all points except start
+    lon3 = traj.result.isel(time=slice(1, None)).lon.values
+    lat3 = traj.result.isel(time=slice(1, None)).lat.values
+    
+    # expand and reshape start point 
+    n, m = np.shape(lon3)
+    lon1_ext = lon1.repeat(m).reshape(n,m)
+    lat1_ext = lat1.repeat(m).reshape(n,m)
+    
+    # Calculate directions + statistics
+    azimuths, _, _ = geod.inv(lon1_ext, lat1_ext, lon3, lat3)
     
     rads = np.deg2rad(90 - azimuths)
     mean_sin = np.sin(rads).mean()
@@ -38,6 +52,7 @@ def export_statistics(traj, file_name):
                  'Spread': spread if spread < 180 else 360 - spread,
                  'R (Directional coherence)': np.sqrt(mean_sin**2 + mean_cos**2)}
     
+    # Return statistics dataframe
     df = pd.DataFrame({
         'Displacement (m)':dist_stat,
         'Trajectory length (m)':len_stat,
