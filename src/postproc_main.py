@@ -34,7 +34,7 @@ def _get_handler(key):
         logging.error(f'Module {module} is not available: {e}')
         return      
     except Exception as e:
-        logging.error(f'Hadler import failed: {e}')   
+        logging.error(f'Handler import failed: {e}')   
         return 
     
     logging.info(f'Module {module_name} imported successfully!')
