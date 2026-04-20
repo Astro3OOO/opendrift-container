@@ -11,10 +11,8 @@ EXPORT_HANDLERS = {
     'POC': ('src.post_processing.poc', 'export_poc_geojson'),
     'Polygons': ('src.post_processing.polygons', 'export_plume_polygons'),
     'Picture': ('src.post_processing.picture', 'export_traj_picture'),
-    'Rectangles': ('src.post_processing.rectangles', 'export_rectangles'),
+    'Rectangles': ('src.post_processing.rotation', 'export_rotated'),
     'ConvexHull': ('src.post_processing.convexhull', 'export_convex_hull'),
-    'Trapezoids': ('src.post_processing.trapezoid', 'export_trapezoids'),
-    'Statistics': ('src.post_processing.statistics', 'export_statistics'),
     'Triangle':('src.post_processing.triangle', 'export_triangle'),
 }
 

@@ -1,7 +1,7 @@
 import geopandas as gpd
 from pyproj import Transformer
 
-from shapely import points, Polygon, MultiPoint, minimum_rotated_rectangle
+from shapely import points, Polygon, MultiPoint
 from src.post_processing.general_tools import extract_points
 from src.post_processing.rectangles import create_rectangle
 from src.post_processing.statistics import export_statistics
@@ -45,18 +45,7 @@ def export_rotated(traj, file_name):
         
         times.append(time)
         rectangles.append(Polygon(points(coords_rect[0], coords_rect[1])))
-        
-        # s = gpd.GeoSeries(points(lons, lats), crs="EPSG:4326")
-        # s = s.to_crs(epsg=3857)
-        # s_rot = s.rotate(mean_angle, origin=points(start))
-        # rot_lon = [g.xy[0][0] for g in s_rot]
-        # rot_lat = [g.xy[1][0] for g in s_rot]
-        # rect = create_rectangle(rot_lat, rot_lon)
-        
-        # rec_gpd = gpd.GeoSeries(rect, crs="EPSG:3857")
-        # rec_gpd = rec_gpd.rotate(-mean_angle, origin=points(start))
 
-    
     gdf = gpd.GeoDataFrame({'time':times, 'geometry':rectangles}, crs="EPSG:4326") 
             
     file_name = file_name.replace('.nc', '_rotated_rectangle.geojson')  
