@@ -34,10 +34,11 @@ def export_statistics(traj):
     # select all points except start
     lat3, lon3 = extract_points(traj, slice(traj.result.time.values[1],
                                             traj.result.time.values[-1]))    
+    
     # expand and reshape start point 
-    n, m = np.shape(lon3)
-    lon1_ext = lon1.repeat(m).reshape(n,m)
-    lat1_ext = lat1.repeat(m).reshape(n,m)
+    m = len(lon3)//len(lon1)
+    lon1_ext = lon1.repeat(m)
+    lat1_ext = lat1.repeat(m)
     
     # Calculate directions + statistics
     azimuths, _, _ = geod.inv(lon1_ext, lat1_ext, lon3, lat3)
