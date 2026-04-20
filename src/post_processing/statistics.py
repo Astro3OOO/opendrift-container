@@ -1,6 +1,7 @@
 import pandas as pd
 from pyproj import Geod
 import numpy  as np
+from src.post_processing.general_tools import extract_points
 
 """
     Trajectory statistics
@@ -10,11 +11,9 @@ def export_statistics(traj):
     geod = Geod(ellps="WGS84")
 
     # Start & End points
-    lon1 = traj.result.lon.isel(time=0).values
-    lat1 = traj.result.lat.isel(time=0).values
+    lat1, lon1 = extract_points(traj, traj.result.time.values[0])
     
-    lon2 = traj.result.lon.isel(time=-1).values
-    lat2 = traj.result.lat.isel(time=-1).values
+    lat2, lon2 = extract_points(traj, traj.result.time.values[-1])
 
     # Displacement & trajectory lenght calculation + statistics
     traj_length, _, _ = traj.get_trajectory_lengths()
@@ -23,16 +22,18 @@ def export_statistics(traj):
     dist_stat = {'Mean': displacement.mean(),
                  'Max': displacement.max(),
                  'Min': displacement.min(),
-                 'Spread': displacement.max() - displacement.min()}
+                 'Spread': displacement.max() - displacement.min()
+                }
+    
     len_stat = {'Mean': traj_length.mean(),
-                 'Max': traj_length.max(),
-                 'Min': traj_length.min(),
-                 'Spread': traj_length.max() - traj_length.min()}
+                'Max': traj_length.max(),
+                'Min': traj_length.min(),
+                'Spread': traj_length.max() - traj_length.min()
+                }
     
     # select all points except start
-    lon3 = traj.result.isel(time=slice(1, None)).lon.values
-    lat3 = traj.result.isel(time=slice(1, None)).lat.values
-    
+    lat3, lon3 = extract_points(traj, slice(traj.result.time.values[1],
+                                            traj.result.time.values[-1]))    
     # expand and reshape start point 
     n, m = np.shape(lon3)
     lon1_ext = lon1.repeat(m).reshape(n,m)
@@ -54,9 +55,9 @@ def export_statistics(traj):
     
     # Return statistics dataframe
     df = pd.DataFrame({
-        'Displacement (m)':dist_stat,
-        'Trajectory length (m)':len_stat,
-        'Angle to North ':angle_stat
+            'Displacement (m)':dist_stat,
+            'Trajectory length (m)':len_stat,
+            'Angle to North ':angle_stat
         })
     
     # file_name = file_name.replace('.nc', '_statistics.xlsx') 
